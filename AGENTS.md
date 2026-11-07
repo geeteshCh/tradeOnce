@@ -8,6 +8,81 @@ TradeOnce does **not** predict prices or pick stocks. It is a **wrapper around a
 
 ---
 
+## Status and next steps (read this first)
+
+*Updated Saturday 2026-11-07, about 2:30 PM. Submissions close at 5:00 PM.*
+
+### Done and verified
+
+| Piece | Where | Proof |
+|---|---|---|
+| Arena (fake, unreliable broker) | `arena/` | `uv run pytest -q`: 50 passed, 5 skipped (integration tests that need MongoDB or API keys) |
+| Round loop, versioning, Stage view | `loop/`, `stage/` | `uv run python -m loop.run` promotes v0 → v3 with **scripted** candidates (hand-written stand-ins) |
+| Judge's auditor wired into the loop | `loop/judge.py` → `auditor.audit_run` | called on every run |
+| External agent through our layer | `agent_bridge/` | ai-hedge-fund (unmodified), naive v0: **4/9 safe**; a timeout makes it hold 50% AAPL against its own 25% limit |
+| Real broker with injected faults | `arena/alpaca_proxy.py`, `arena/live_soak.py` | Alpaca **paper**, same 10 seeded faults: v0 sent **14 orders (4 duplicates)**, scripted v3 sent **10 (0)** |
+| The agent alone, live | `aihf` CLI | made a real decision on Friday's session: buy AAPL on an earnings beat, capped by its risk limit |
+
+All of this is on branch `feature/arena-loop`. **Open and merge its PR into `main` first**, so everyone builds on it: https://github.com/geeteshCh/tradeOnce/pull/new/feature/arena-loop
+
+### The one thing still missing
+
+A promoted Executor **written by an LLM**. Every promotion so far uses scripted candidates. That is the heart of *The System That Gets Better*, so it comes first.
+
+### Next steps by owner
+
+**Builder owner** (by 3:15)
+- [ ] Plug in a real Builder: `uv run python -m loop.run --builder aider` (models from `TRADEONCE_AIDER_MODELS=m1,m2`) or `--builder yourmodule:build` (signature in [Plug in your part](#plug-in-your-part-no-loop-changes-needed)). The Gemini and SubQ clients are in `providers/`.
+- [ ] The Builder edits only `executor/` in its worktree and keeps the stdin/stdout protocol (see Shared interfaces item 7).
+- [ ] Generated Executors must read `BROKER_URL` and never hard-code a host or keys. The proxy adds Alpaca's auth headers, so the same code runs on the Arena and on Alpaca paper.
+- [ ] Use `client_order_id` = `intent_id` (or `"<intent_id>-<n>"` for follow-up orders). The Judge maps orders to intents that way.
+- [ ] **Done when** one loop run promotes at least one LLM-written version that passes the hidden set. Copy the run id: `ls runs/`.
+
+**Judge owner** (by 3:15)
+- [ ] The auditor already runs every round. Next: the **Adversary** as `--adversary yourmodule:attack`, with signature `attack(round, history) -> arena.models.Scenario | None`. Validate with `Scenario.model_validate`; if it fails, feed the error back to the LLM and retry. Use only faults in `arena.models.FAULT_TYPES`.
+- [ ] Your own hidden set in `auditor/hidden/` (gitignored, **never commit it**). Include counter-cases where retrying is correct (`transient_500`, `rate_limit_429`, `real_reject`). Until it exists, `python -m loop.make_hidden` writes a stand-in to `hidden_set/`.
+- [ ] Run the Adversary on a different model family from the Builder (the independence story).
+
+**Loop & Stage owner** (by 4:00)
+- [ ] Merge the `feature/arena-loop` PR.
+- [ ] Add `--executor-dir` to `agent_bridge/run_baseline.py`, so ai-hedge-fund can run through a promoted version in `runs/<run>/evo` (today it runs from the repo root).
+- [ ] Final runs, once the Builder's version exists (commands below).
+- [ ] README: the pitch, the who-wrote-what table, before/after tables, and what is scripted vs LLM-written.
+- [ ] Record the 1-minute video from `uv run python -m stage.view runs/<run>/events.jsonl --replay`.
+
+**Everyone**
+- [ ] 4:00 feature freeze. 4:40 video done, repo public. 5:00 submitted with every member added.
+- [ ] Say "scripted" wherever a hand-written candidate appears in the demo.
+
+### Final checks (after the LLM Builder promotes a version)
+
+```bash
+uv run python -m loop.run --builder aider --rounds 4                        # 1. LLM-written promotion; note the run id
+cd agent_bridge && uv run python run_baseline.py --executor-cmd "python -m executor.run" --label after   # 2. needs --executor-dir first (see above)
+cd .. && set -a && source .env && set +a && uv run python -m arena.live_soak --n 200 --seed 7 --label final --executor-dir runs/<run>/evo   # 3. Alpaca paper
+```
+
+Expected: (1) at least one LLM-written version promoted and at least one candidate rolled back; (2) ai-hedge-fund goes from 4/9 to 9/9 safe; (3) 0 duplicates on Alpaca paper, compared with v0 on the same seed.
+
+### Alpaca paper setup (whoever runs check 3)
+
+1. Free account at alpaca.markets, then switch the dashboard to the **Paper** account.
+2. Generate API keys **on the Paper account**.
+3. Put them in `.env` at the repo root (gitignored):
+   ```
+   APCA_API_KEY_ID=...
+   APCA_API_SECRET_KEY=...
+   ```
+4. Load them in the same command: `set -a && source .env && set +a && uv run python -m arena.live_soak ...`
+5. Weekends: crypto (`LTC/USD`, the default) fills right away; stocks just queue. The proxy refuses live Alpaca.
+
+### Key hygiene
+
+- Never paste keys into chats, screenshots or the video. Keep them in `.env` or `~/.hedge-fund/.env`, both outside git.
+- Any key that has appeared on screen or in a chat: rotate it after the event.
+
+---
+
 ## What TradeOnce wraps
 
 We do **not** build the trading agent. We use **virattt/ai-hedge-fund** (PyPI `aihf==2.7.0`, MIT), **installed unmodified**, and plug TradeOnce in through **its own `Broker` interface**. This is built: see [Agent bridge reference](#agent-bridge-reference).
@@ -293,7 +368,7 @@ Each run writes `runs/<run_id>/`: `events.jsonl`, `evo/` (its own git repo: `mai
 | 4 | `t06_partial_fill` | v2 breaks. r04-a (follow-up order for the remainder) → **v3**. r04-b (re-send full order) rejected for `OVERFILL` |
 
 ### Not built yet (Loop & Stage owner)
-- Final Alpaca paper trade through the promoted Executor (via `ArenaBroker` pointed at the paper URL).
+- Alpaca paper orders through the promoted Executor: **done** via `arena/live_soak.py` (see [Live soak](#live-soak-on-alpaca-paper-arenaalpaca_proxypy-arenalive_soakpy)). Still open: ai-hedge-fund's own orders to Alpaca paper (point `ArenaBroker` at the proxy URL; the proxy adds the auth headers).
 - Optional: show `agent_bridge/run_baseline.py` before/after tables in the Stage view.
 
 ---
