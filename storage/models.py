@@ -1,4 +1,4 @@
-"""Typed metadata records; executable code and lessons remain versioned in git."""
+"""Typed candidate, verification, and approved harness-memory records."""
 
 from datetime import UTC, datetime
 from typing import Literal
@@ -28,13 +28,18 @@ class _Record(BaseModel):
 
 
 class BuilderCandidate(_Record):
-    """A proposed code version produced by the Builder in one tournament round."""
+    """A Builder proposal with source provenance and optional exact harness bytes.
+
+    For harness-only proposals, git_ref identifies the application source checkout;
+    this document's ID identifies the generated harness version.
+    """
 
     run_id: str = Field(min_length=1)
     round: int = Field(ge=0)
     candidate: str = Field(min_length=1)
     git_ref: str = Field(min_length=1)
     summary: str = ""
+    harness_files: dict[str, str] = Field(default_factory=dict)
 
 
 class VerificationResult(_Record):
@@ -45,3 +50,15 @@ class VerificationResult(_Record):
     hidden_pass_rate: float = Field(ge=0, le=1)
     invariant_failures: list[str] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
+
+
+class HarnessMemory(_Record):
+    """A fully rehydratable harness snapshot backed by held-out approval proof."""
+
+    scope: str = Field(min_length=1)
+    revision: int = Field(ge=1)
+    candidate_id: str = Field(min_length=1)
+    verification_id: str = Field(min_length=1)
+    git_ref: str = Field(min_length=1)
+    harness_files: dict[str, str]
+    library_files: dict[str, str] = Field(default_factory=dict)

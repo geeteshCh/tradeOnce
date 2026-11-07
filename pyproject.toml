@@ -6,8 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "tradeonce"
 version = "0.1.0"
 description = "A verified improvement loop for trading-agent execution code."
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.14"
 dependencies = [
+    "harness2",
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "httpx>=0.28.1",
@@ -21,20 +22,32 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["arena*", "auditor*", "loop*", "stage*", "providers*", "storage*"]
+include = ["arena*", "auditor*", "builder*", "loop*", "stage*", "providers*", "storage*", "harnessing*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"
 default = true
 
+[tool.uv.sources]
+harness2 = { git = "https://github.com/google-research/harness2.git", rev = "6868817518876de8fd170c6a8354daca273b6191" }
+
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["harness2.*"]
+ignore_missing_imports = true
+
+# The fixed legacy auditor is outside this integration's typed boundary.
+[[tool.mypy.overrides]]
+module = ["auditor.*"]
+ignore_errors = true

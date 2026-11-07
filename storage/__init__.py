@@ -2,6 +2,12 @@
 
 from storage.client import MongoStore
 from storage.config import MongoSettings
-from storage.models import BuilderCandidate, VerificationResult
+from storage.models import BuilderCandidate, HarnessMemory, VerificationResult
 
-__all__ = ["BuilderCandidate", "MongoSettings", "MongoStore", "VerificationResult"]
+__all__ = [
+    "BuilderCandidate",
+    "HarnessMemory",
+    "MongoSettings",
+    "MongoStore",
+    "VerificationResult",
+]
