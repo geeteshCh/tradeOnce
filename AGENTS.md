@@ -6,6 +6,26 @@
 
 TradeOnce does **not** predict prices or pick stocks. It is a **wrapper around an existing open-source trading agent** that improves that agent's code, and the code that places its trades, so its trades are **correct and safe**. It does not try to make the agent more profitable.
 
+## Framework decision: Harness² recursive self-improvement
+
+**Build around [Google Research Harness²](https://github.com/google-research/harness2).** Use the existing `harnessing/` integration and the upstream revision pinned in `pyproject.toml`. Harness² owns recursive improvement of the Builder's prompts, guardrails, tool guidance, and lessons; the Builder produces actual Executor code patches. The fixed TradeOnce loop and deterministic Auditor retain promotion authority.
+
+Two levels of improvement are required:
+
+- **Within a task:** Propose → Probe → Compose refines the Builder harness using visible training traces and actual candidate executions. Start with `k=1` and `mode="sequential"` in `HarnessSettings`; increase the budget only after an end-to-end run works.
+- **Across tasks:** reuse the approved harness and evidence-supported lessons for later faults through the existing scoped `harness_memory` store. Record the source commit, harness revision, candidate, and verification proof. Rejected candidates retain the previous approved state.
+
+| Owner | Integration contract |
+|---|---|
+| Builder | Reuse `HarnessRunner`, `HarnessTask`, and the proposer in `harnessing/`. Implement a `--builder module:function` entry point using the existing `loop.builder.BuildContext`; edit only `workdir/executor/` and return a summary. Aider may be the file-editing tool inside this workflow. |
+| Arena | Supply a trusted `Probe(task, harness) -> ProbeResult` that runs real candidate code against public training scenarios and returns measured traces. Preserve the existing Executor stdin/stdout protocol. |
+| Judge | Supply a private `Verifier(task, harness, probe) -> VerificationOutcome` backed by the Arena ledger and locked invariant checks. Run regression and held-out checks against the same baseline and candidate conditions. Hidden inputs and detailed failures stay outside proposer context and lesson memory; expose only aggregate pass counts required for framework scoring. |
+| Loop & Stage | Keep the two-candidate tournament and promote/reject flow. Distinguish harness refinement from Executor promotion in events and replay; persist only improvements authorized by independent verification. |
+
+Enforce allowed writes and private-data access through execution isolation; a prompt or a git worktree alone is not a sandbox. Generated code receives no Judge credentials, hidden fixtures, or Arena admin token. Keep model calls, retries, and execution time bounded.
+
+**Current status:** `harnessing/` includes a Markdown-policy demo; that demo alone does not establish code repair. **Done when:** a Harness²-guided Builder produces an LLM-written Executor patch, independent checks authorize its promotion, and a later task reloads the approved harness and lesson. See [the integration API and example](readme.md#harness²-refinement-and-persistent-memory) and the [upstream recursion guide](https://github.com/google-research/harness2/blob/6868817518876de8fd170c6a8354daca273b6191/docs/EXPERIMENTS.md) before changing the adapter or recursion schedule.
+
 ---
 
 ## Status and next steps (read this first)
@@ -23,7 +43,7 @@ TradeOnce does **not** predict prices or pick stocks. It is a **wrapper around a
 | Real broker with injected faults | `arena/alpaca_proxy.py`, `arena/live_soak.py` | Alpaca **paper**, same 10 seeded faults: v0 sent **14 orders (4 duplicates)**, scripted v3 sent **10 (0)** |
 | The agent alone, live | `aihf` CLI | made a real decision on Friday's session: buy AAPL on an earnings beat, capped by its risk limit |
 
-All of this is on branch `feature/arena-loop`. **Open and merge its PR into `main` first**, so everyone builds on it: https://github.com/geeteshCh/tradeOnce/pull/new/feature/arena-loop
+The Arena/Loop and Harness² integration are merged into `main`; build on those existing interfaces.
 
 ### The one thing still missing
 
@@ -32,7 +52,7 @@ A promoted Executor **written by an LLM**. Every promotion so far uses scripted 
 ### Next steps by owner
 
 **Builder owner** (by 3:15)
-- [ ] Plug in a real Builder: `uv run python -m loop.run --builder aider` (models from `TRADEONCE_AIDER_MODELS=m1,m2`) or `--builder yourmodule:build` (signature in [Plug in your part](#plug-in-your-part-no-loop-changes-needed)). The Gemini and SubQ clients are in `providers/`.
+- [ ] Wire the Harness²-guided Builder through `--builder yourmodule:build` (replace the placeholder with the implemented entry point; signature in [Plug in your part](#plug-in-your-part-no-loop-changes-needed)). Follow the [Harness² integration contract](#framework-decision-harness²-recursive-self-improvement). Reuse the model clients in `providers/`.
 - [ ] The Builder edits only `executor/` in its worktree and keeps the stdin/stdout protocol (see Shared interfaces item 7).
 - [ ] Generated Executors must read `BROKER_URL` and never hard-code a host or keys. The proxy adds Alpaca's auth headers, so the same code runs on the Arena and on Alpaca paper.
 - [ ] Use `client_order_id` = `intent_id` (or `"<intent_id>-<n>"` for follow-up orders). The Judge maps orders to intents that way.
@@ -44,7 +64,7 @@ A promoted Executor **written by an LLM**. Every promotion so far uses scripted 
 - [ ] Run the Adversary on a different model family from the Builder (the independence story).
 
 **Loop & Stage owner** (by 4:00)
-- [ ] Merge the `feature/arena-loop` PR.
+- [ ] Connect the Harness² Builder entry point to the existing round loop and Stage events.
 - [ ] Add `--executor-dir` to `agent_bridge/run_baseline.py`, so ai-hedge-fund can run through a promoted version in `runs/<run>/evo` (today it runs from the repo root).
 - [ ] Final runs, once the Builder's version exists (commands below).
 - [ ] README: the pitch, the who-wrote-what table, before/after tables, and what is scripted vs LLM-written.
@@ -55,6 +75,8 @@ A promoted Executor **written by an LLM**. Every promotion so far uses scripted 
 - [ ] Say "scripted" wherever a hand-written candidate appears in the demo.
 
 ### Final checks (after the LLM Builder promotes a version)
+
+The `--builder aider` command below checks the file-editing fallback. For the recursive self-improvement demo, replace `aider` with the implemented Harness² Builder's `module:function` entry point; Aider alone does not exercise Harness².
 
 ```bash
 uv run python -m loop.run --builder aider --rounds 4                        # 1. LLM-written promotion; note the run id
@@ -140,8 +162,8 @@ We do **not** build the trading agent. We use **virattt/ai-hedge-fund** (PyPI `a
   - `tools/` holds agent-created tools (e.g. `reconcile_order.py`), loaded through a registry.
   - v0 is deliberately naive: it retries on timeout, which causes duplicate orders.
   - The same code runs against the simulator and against the Alpaca paper account; only the base URL changes.
-- **Evolution engine**: takes failure traces from the training set and produces a candidate patch (an edited file or a new tool) on its own git branch. Built on **Aider** (see *Agent stack*).
-- **Memory** is `executor/LESSONS.md`, which the Builder updates each round. It is versioned in git and promoted or rolled back with the code.
+- **Evolution engine**: **Harness²**, following the [integration contract](#framework-decision-harness²-recursive-self-improvement). It refines the Builder harness from training evidence; the Builder produces a candidate Executor patch on its own git branch.
+- **Memory**: keep Executor code and `executor/LESSONS.md` versioned in git; use the existing scoped Harness² library and MongoDB `harness_memory` for approved harness snapshots and transferable lessons.
 - **Tournament:** 2 candidates per round (different models or prompts).
 - **Output:** candidate Executor versions.
 
@@ -356,7 +378,7 @@ Each run writes `runs/<run_id>/`: `events.jsonl`, `evo/` (its own git repo: `mai
 
 **Judge bridge** (`loop/judge.py`): `ledger_to_snapshot(trace, intent)` converts the Arena ledger to `audit_run`'s snapshot shape. Orders map to intents by `client_order_id` (`== intent_id` or `"<intent_id>-<n>"`), falling back to a unique (symbol, side) match. `submit_unknown` / `retry` / `reconciled` events are derived from the broker call log; re-sending the same `client_order_id` counts as reconciled (the broker refuses duplicates).
 
-**Scripted candidates are a stand-in**, used to test the loop and as a deterministic fallback. They are hand-written, so if the demo uses them, say so. The real demo should run `--builder aider` (or the Builder team's function) and be recorded from replay.
+**Scripted candidates are a stand-in**, used to test the loop and as a deterministic fallback. They are hand-written, so if the demo uses them, say so. The recursive improvement demo must run the Harness²-guided Builder's `module:function` entry point and be recorded from replay.
 
 ### Scripted run (what the default produces)
 
@@ -436,17 +458,18 @@ Local check through the proxy (Arena upstream, 40 trades, seed 7): naive v0 put 
 
 | Part | Tool | Why |
 |---|---|---|
-| **Builder** | **Aider** (CLI, scripted) | Edits files, auto-commits each change to git, and `--test-cmd` + `--auto-test` runs the training scenarios and fixes failures on its own. Works with any model (uses LiteLLM), so it can run on sponsor models. |
+| **Builder improvement** | **Harness²**, via `harnessing/` | Refines the Builder harness with Propose–Probe–Compose and carries approved lessons across tasks. See the integration contract above. |
+| **Code editing** | Existing Builder/model clients; **Aider** is optional | Produces real Executor patches inside the allowed workspace; the fixed loop owns versioning and promotion. |
 | **Adversary** | **PydanticAI**, one call returning a `Scenario` | One structured move per round. PydanticAI validates the output and retries on bad JSON. |
 | **Auditor** | Plain Python (deterministic) | The invariant checks must not depend on an LLM. Optionally an LLM (Adversary's model family) writes hidden-set variants ahead of time and plain-language reasons. |
-| **Orchestration** | Plain Python round loop (~50 lines) | Our loop is fixed; a framework adds nothing. |
-| **Memory** | Files in git (`executor/`, `executor/tools/`, `executor/LESSONS.md`) | The track wants *versioned* changes proven on held-out tests. Framework memory (vector stores, chat history) is neither. |
+| **Orchestration** | Existing plain Python round loop + Harness² inside the Builder | The fixed loop runs attacks, independent judging, and promotion; Harness² owns recursive Builder refinement. |
+| **Memory** | Versioned Executor files + existing Harness²/MongoDB memory | Git identifies code; scoped harness snapshots, lessons, and verification proof support reuse across tasks. |
 
 **Builder alternative: Google Antigravity managed agent** (`agent="antigravity-preview-09-2026"`, `agent_config={"type": "antigravity", "model": "gemini-4-argon"}`, `environment="remote"`, `background=True`). A hosted sandbox where Argon edits, runs tests and iterates. Use it if Aider + sponsor models struggle: send it `executor/`, `arena/` and the training traces, let it run `python -m arena.run_training`, take back the changed files, and re-run everything locally (never trust its "passed"). It is one agent per call, not a multi-agent environment. Preview API and calls take minutes, so keep the Aider path working as the fallback.
 
 **Not using:** Mastra (TypeScript; we're Python), LangGraph (unneeded orchestration), CrewAI/AutoGen (built for agents chatting, which we avoid), OpenHands (too heavy), Letta (overkill).
 
-**Builder run per candidate**, each in its own git worktree (one branch per candidate = the tournament):
+**Optional Aider file-editing example**, inside the Harness²-guided Builder, each candidate in its own git worktree (this command alone does not run Harness²):
 
 ```bash
 git worktree add ../cand_a -b r3-cand-a v2
@@ -459,7 +482,7 @@ cd ../cand_a && aider \
   executor/executor.py executor/tools/
 ```
 
-Aider only sees the files listed, so it cannot read `auditor/` or the hidden set.
+The file list controls editing context; enforce the private-data and write boundaries described in the Harness² integration contract through the execution environment.
 
 **Models (different families for independence and sponsor prizes):**
 - Builder candidate A: Meta Model API. Candidate B: a second Meta prompt, or Gemini.
