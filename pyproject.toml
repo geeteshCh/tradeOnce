@@ -51,3 +51,8 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["auditor.*"]
 ignore_errors = true
+
+# Check the new typed integration while retaining the existing Arena/loop code.
+[[tool.mypy.overrides]]
+module = ["arena.*", "loop.*"]
+follow_imports = "silent"
