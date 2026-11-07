@@ -29,7 +29,10 @@ def recorded_run() -> CodingDemoReport:
 def test_report_uses_measured_verdict_and_does_not_adopt_rejected_lesson() -> None:
     report = recorded_run()
     state = presentation_from_report(report)
-    assert "5/5 unseen tests passed. Accepted." in state.stages[2].summary
+    assert "Wanted 1 AAPL; the broker bought 1" in state.stages[2].summary
+    assert "5/5" not in state.stages[2].summary
+    assert "5/5" in state.stages[2].details
+    assert "3 attempts → related problem: 1" in state.stages[4].summary
     assert "1 repair proposal" in state.stages[4].details
     rejected = report.first.model_copy(
         update={"decision": "reject", "memory_revision": 0, "hidden_passed": 0}
@@ -37,9 +40,13 @@ def test_report_uses_measured_verdict_and_does_not_adopt_rejected_lesson() -> No
     state = presentation_from_report(
         report.model_copy(update={"first": rejected, "transfer": None})
     )
-    assert "0/5" in state.stages[2].summary
+    assert "0/5" in state.stages[2].details
     assert "original version kept" in state.stages[2].summary
     assert state.stages[3].summary == "No lesson was adopted."
+    rejected_transfer = report.transfer.model_copy(update={"decision": "reject"})
+    state = presentation_from_report(report.model_copy(update={"transfer": rejected_transfer}))
+    assert "Not adopted" in state.stages[4].summary
+    assert "First repair:" not in state.stages[4].summary
 
 
 def test_pending_and_public_results_never_claim_independent_success() -> None:
