@@ -109,6 +109,22 @@ def _lesson(result: CodingTaskResult) -> str:
     return "No lesson was adopted."
 
 
+def _check_outcomes(result: CodingTaskResult) -> str:
+    """Translate public broker evidence without scores or internal identifiers."""
+    descriptions = {
+        "t01_clean": "Normal trade: the requested shares were bought.",
+        "t02_accept_then_timeout": "Lost reply: no extra shares were bought.",
+        "t03_accept_then_500": "Error after purchase: no extra shares were bought.",
+        "t04_transient_500": "Temporary broker failure: the trade still completed.",
+        "t09_real_reject": "Rejected trade: nothing was bought.",
+    }
+    return "\n".join(
+        descriptions[row.scenario_id] if row.passed else "A broker failure still needs a repair."
+        for row in result.public.results
+        if row.scenario_id in descriptions
+    )
+
+
 def apply_demo_event(state: PresentationState, event: DemoEvent) -> PresentationState:
     """Return a new presentation state after one actual Builder event.
 
@@ -139,7 +155,7 @@ def apply_demo_event(state: PresentationState, event: DemoEvent) -> Presentation
             stage.summary = "Gemini is writing and testing a real Python repair."
         elif kind == "public_check":
             stage.summary = "Testing the repair against the known cases."
-            stage.details = event.message
+            stage.details = "Checking the broker's recorded holdings against the requested trade."
         else:
             stage.summary = "The first try was rejected; the approved version stayed in place."
     elif kind == "verifying":
@@ -158,10 +174,7 @@ def apply_demo_event(state: PresentationState, event: DemoEvent) -> Presentation
                 f"{result.patch_proposals} repair proposal(s) in {result.elapsed_seconds:.0f}s."
             )
             updated.stages[2].summary = _decision(result)
-            updated.stages[2].details = (
-                f"Independent checks: {result.hidden_passed}/{result.hidden_total} unseen cases passed.\n"
-                f"Verification: {result.verification_id}"
-            )
+            updated.stages[2].details = _check_outcomes(result)
             updated.stages[3].summary = _lesson(result)
             updated.stages[3].details = result.lesson
         else:
@@ -175,8 +188,8 @@ def apply_demo_event(state: PresentationState, event: DemoEvent) -> Presentation
             updated.stages[4].details = (
                 f"{_decision(result)}\n"
                 f"{result.patch_proposals} repair proposal(s), {result.elapsed_seconds:.0f}s.\n"
-                f"Saved lesson {'loaded' if result.loaded_memory_revision else 'not loaded'}. "
-                f"Independent checks: {result.hidden_passed}/{result.hidden_total} unseen cases passed.\n"
+                f"Saved lesson {'loaded' if result.loaded_memory_revision else 'not loaded'}.\n"
+                f"{_check_outcomes(result)}\n"
                 "Two different tasks; this run shows the comparison, not a guaranteed speedup."
             )
             updated.stages[4].status = "complete"
