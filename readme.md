@@ -196,3 +196,34 @@ The current code includes our deterministic auditor, MongoDB client, and model A
 The Arena, Builder, Judge orchestration, and external-agent integration described
 in `AGENTS.md` are separate workstreams. Any external trading agent remains its
 authors' work; its license and attribution must accompany its integration.
+
+## Builder MVP
+
+The `builder` package provides the controlled candidate loop: it creates isolated
+Git worktrees, runs Aider against a failure trace, enforces the Builder's
+`executor/` write boundary, runs the visible training command, and asks a locked
+Judge callback for the promotion verdict. The Arena and Executor are intentionally
+injected, so they can be added without changing the Builder.
+
+```python
+from pathlib import Path
+
+from builder import BuilderRound
+
+round_runner = BuilderRound(
+    repo=Path("."),
+    worktree_root=Path("../tradeonce-builder-worktrees"),
+    base_ref="HEAD",
+    training_command=["uv", "run", "python", "-m", "arena.run_training"],
+    judge=judge_candidate,  # (worktree, git_ref) -> JudgeVerdict
+)
+winner, candidates, verdicts = round_runner.run(
+    round_number=1,
+    failure_trace="The timed-out order was submitted twice.",
+)
+```
+
+Candidates are rejected if they modify anything outside `executor/`. Only
+training-passing candidates are committed and sent to the Judge; a promoted
+candidate receives a `vN` Git tag. Hidden tests and Judge implementation remain
+outside the Builder worktree and are never included in its prompt.
