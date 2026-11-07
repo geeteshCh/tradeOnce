@@ -5,13 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
 
 from rich.console import Console
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.table import Table
+from rich.status import Status
 
 from builder.codegen import CodePatch, generate_patch
 from builder.evidence import SuiteEvidence
@@ -28,144 +26,146 @@ from providers import GeminiClient, GeminiSettings
 from storage import MongoStore
 
 
+def _problem(evidence: SuiteEvidence, console: Console) -> None:
+    """Show the requested trade and observed broker position in one sentence."""
+    initial = next(row for row in evidence.results if row.suite == "training")
+    for symbol, wanted in initial.expected_positions.items():
+        actual = initial.final_positions.get(symbol, 0)
+        console.print(f"   Wanted {wanted:g} {symbol}; the broker bought {actual:g}.")
+
+
+def _verdict(result: CodingTaskResult, console: Console) -> None:
+    """Show actual unseen-test evidence and the independent adoption decision."""
+    decision = "Accepted."
+    if result.decision == "reject":
+        retained = "previous" if result.loaded_memory_revision else "original"
+        decision = f"Not adopted; {retained} version kept."
+    console.print(
+        f"   {result.hidden_passed}/{result.hidden_total} unseen tests. {decision}",
+        style="green" if result.decision == "promote" else "red",
+    )
+
+
+def _effort(result: CodingTaskResult) -> str:
+    """Format actual model proposal count and measured task time."""
+    noun = "proposal" if result.patch_proposals == 1 else "proposals"
+    return f"{result.patch_proposals} repair {noun}, {result.elapsed_seconds:.0f}s"
+
+
+def _lesson(result: CodingTaskResult, console: Console) -> None:
+    """Describe memory adoption without implying a prior approved lesson exists."""
+    if (
+        result.decision == "promote"
+        and result.memory_revision > result.loaded_memory_revision
+    ):
+        console.print("   Saved the verified lesson in MongoDB.")
+    elif result.loaded_memory_revision:
+        console.print("   Previous approved lesson kept.")
+    else:
+        console.print("   No lesson was adopted.")
+
+
 def present(
     report: CodingDemoReport, console: Console, *, replay: bool = False
 ) -> None:
-    """Present measured broker risk, a real patch, independent checks, and transfer."""
-    label = "Recorded live run" if replay else "Verified live run"
-    console.print(
-        Panel(
-            "[bold]One timeout. Two orders. One reusable lesson.[/bold]\n"
-            f"{label} · {report.model} · Harness² sequential k=1",
-            border_style="cyan",
-        )
-    )
+    """Tell the five-part story; detailed source and lineage stay in the report."""
     first = report.first
-    initial = next(row for row in first.baseline.results if row.suite == "training")
-    console.print(
-        "[bold red]1. The bug[/bold red]  The broker filled the order, "
-        "then the response timed out."
-    )
-    for symbol, quantity in initial.expected_positions.items():
-        actual = initial.final_positions.get(symbol, 0)
+    if replay:
+        console.print("TradeOnce — watch it learn", style="bold")
+        console.print("Recorded live run", style="dim")
+        console.print("\n1. The mistake", style="bold red")
+        _problem(first.baseline, console)
+        console.print("   The trade went through. The reply got lost. It bought again.")
+        console.print("\n2. The repair", style="bold cyan")
         console.print(
-            f"[bold]Authorized: {quantity:g} {symbol}  →  "
-            f"Broker executed: {actual:g} {symbol}[/bold]"
+            "   Gemini rewrote the Python: check with the broker before retrying."
         )
-    console.print(
-        "[bold cyan]2. The repair[/bold cyan]  Gemini wrote Python code "
-        "and updated executor/LESSONS.md."
-    )
-    lines = first.diff.splitlines()
-    code_start = next(
-        (
-            index
-            for index, line in enumerate(lines)
-            if line.startswith("diff --git a/executor/run.py")
-        ),
-        0,
-    )
-    focus = next(
-        (
-            index
-            for index, line in enumerate(lines[code_start:], start=code_start)
-            if line.startswith("+")
-            and "client_order_id" in line
-            and ('"' in line or "'" in line)
-            and not line.startswith('+"""')
-        ),
-        code_start,
-    )
-    start = max(0, focus - 6)
-    console.print(
-        Panel(
-            Syntax("\n".join(lines[start : start + 34]), "diff", word_wrap=True),
-            title=f"Actual repair excerpt · Git {first.git_ref[:10]} · full diff in report",
-            border_style="cyan",
-        )
-    )
-    table = Table(title="3. Independent verification", expand=True)
-    table.add_column("Task")
-    table.add_column("Training + regression")
-    table.add_column("Fresh hidden cases")
-    table.add_column("Result")
-    for item in (first, report.transfer):
-        if item is None:
-            continue
-        table.add_row(
-            item.task.replace("_", " "),
-            f"{item.public.passed}/{item.public.total}",
-            f"{item.hidden_passed}/{item.hidden_total}",
-            f"{item.decision.upper()} {item.version or ''}",
-        )
-    console.print(table)
-    console.print(
-        Panel(
-            Markdown(first.lesson[:1200]),
-            title=f"4. Approved lesson persisted in MongoDB · revision {first.memory_revision}",
-            border_style="green",
-        )
-    )
+        console.print("\n3. The check", style="bold")
+        _verdict(first, console)
+        console.print("\n4. The lesson", style="bold")
+        _lesson(first, console)
+        if report.transfer is not None:
+            console.print("\n5. The next problem", style="bold cyan")
+            if report.transfer.loaded_memory_revision:
+                console.print("   Original broken code again, with the saved lesson.")
+            _verdict(report.transfer, console)
+    console.print("\nMeasured work", style="bold")
+    console.print(f"   First task: {_effort(first)}")
     if report.transfer is not None:
-        later = report.transfer
-        transfer = Table(title="5. Apply the lesson to an accepted-then-500 failure")
-        transfer.add_column("Measured work")
-        transfer.add_column("First task")
-        transfer.add_column("Later task")
-        transfer.add_row(
-            "Executor patch proposals",
-            str(first.patch_proposals),
-            str(later.patch_proposals),
-        )
-        transfer.add_row(
-            "Memory loaded from MongoDB",
-            str(first.loaded_memory_revision),
-            str(later.loaded_memory_revision),
-        )
-        transfer.add_row(
-            "Approved MongoDB revision",
-            str(first.memory_revision),
-            str(later.memory_revision),
-        )
-        transfer.add_row(
-            "Measured elapsed seconds",
-            f"{first.elapsed_seconds:.1f}",
-            f"{later.elapsed_seconds:.1f}",
-        )
-        transfer.add_row("Execution path", first.mode, later.mode)
-        console.print(transfer)
-        console.print(
-            "The later task starts from the original buggy Python code. "
-            "Only approved Builder instructions and lessons transfer."
-        )
-        if later.mode == "memory_reuse":
-            console.print(
-                "[green]Approved Builder passed the new gate without another refinement.[/green]"
-            )
-    console.print(f"[dim]{report.measurement_note}[/dim]")
+        console.print(f"   Next task:  {_effort(report.transfer)}")
+        console.print("   Two related tasks; future results can vary.", style="dim")
 
 
-def _observer(console: Console, events: Path) -> Observer:
-    """Record public progress and show compact live stage transitions."""
+def _observer(console: Console, events: Path, status: Status | None = None) -> Observer:
+    """Keep full events while presenting only real stage changes to the audience.
+
+    Harness² can run candidate probes concurrently. The lock keeps headings and
+    event records ordered without exposing candidate chatter or private inputs.
+    """
+    lock = Lock()
+    task_number = 0
+    repair_announced = False
+    check_announced = False
+
+    def working(message: str) -> None:
+        if status is not None:
+            status.update(message)
 
     def observe(event: str, message: str) -> None:
-        with events.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps({"event": event, "message": message}) + "\n")
-        if event == "baseline":
-            evidence = SuiteEvidence.model_validate_json(message)
-            console.print(
-                f"[red]Original Executor: {evidence.passed}/{evidence.total} public cases[/red]"
-            )
-        elif event in {"building", "public_check", "memory", "reuse_rejected"}:
-            console.print(f"[cyan]{event}[/cyan]  {message}")
-        elif event in {"promoted", "rejected"}:
-            result = CodingTaskResult.model_validate_json(message)
-            console.print(
-                f"[bold]{result.decision.upper()}[/bold] {result.task}: "
-                f"public {result.public.passed}/{result.public.total}, "
-                f"hidden {result.hidden_passed}/{result.hidden_total}, "
-                f"{result.patch_proposals} patch proposals"
-            )
+        nonlocal task_number, repair_announced, check_announced
+        with lock:
+            with events.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps({"event": event, "message": message}) + "\n")
+            if event == "baseline":
+                task_number += 1
+                repair_announced = check_announced = False
+                if task_number == 1:
+                    console.print("\n1. The mistake", style="bold red")
+                    _problem(SuiteEvidence.model_validate_json(message), console)
+                    console.print(
+                        "   The trade went through. The reply got lost. It bought again."
+                    )
+                else:
+                    console.print("\n5. The next problem", style="bold cyan")
+                    console.print(
+                        "   A different broker error, starting with the original broken code."
+                    )
+                working("Preparing a repair from the observed failure...")
+            elif event == "building":
+                if not repair_announced:
+                    if task_number == 1:
+                        console.print("\n2. The repair", style="bold cyan")
+                        console.print("   Gemini is writing a Python repair...")
+                    repair_announced = True
+                working("AI is writing and testing code changes...")
+            elif event == "public_check":
+                working("Testing repairs against the known cases...")
+            elif event == "verifying":
+                if not check_announced:
+                    if task_number == 1:
+                        console.print("\n3. The check", style="bold")
+                    console.print("   Independent checker is trying unseen cases...")
+                    check_announced = True
+                working("Independent checks are running...")
+            elif event == "memory":
+                console.print("   Loaded the previously approved lesson.")
+                working("Applying the saved lesson to the new problem...")
+            elif event == "reuse_rejected":
+                console.print(
+                    "   First try not adopted; approved version kept.", style="yellow"
+                )
+                working("Refining the repair after the rejected attempt...")
+            elif event in {"promoted", "rejected"}:
+                result = CodingTaskResult.model_validate_json(message)
+                _verdict(result, console)
+                if task_number == 1:
+                    console.print("\n4. The lesson", style="bold")
+                    _lesson(result, console)
+                working(
+                    "Repair verified."
+                    if result.decision == "promote"
+                    else "Keeping the starting version."
+                )
 
     return observe
 
@@ -201,10 +201,11 @@ def main() -> int:
     settings = GeminiSettings.model_validate(
         settings.model_dump() | {"timeout_seconds": 90}
     )
-    console.print(
-        f"[bold]Live coding run {run_id}[/bold] · {settings.model} · scope {scope}"
-    )
-    with GeminiClient(settings) as client:
+    console.print("[bold]TradeOnce — watch it learn[/bold]")
+    with (
+        console.status("Starting the broker test...") as status,
+        GeminiClient(settings) as client,
+    ):
         proposer = GeminiHarnessProposer(client, settings.model, max_output_tokens=4096)
 
         def generate(
@@ -224,7 +225,7 @@ def main() -> int:
                 proposer,
                 generate,
                 CodingSettings(root=root, scope=scope),
-                observe=_observer(console, root / "events.jsonl"),
+                observe=_observer(console, root / "events.jsonl", status),
             )
             first = experiment.run_task("timeout", reuse_memory=False)
         later = None
@@ -243,8 +244,7 @@ def main() -> int:
     report_path = root / "report.json"
     report_path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
     present(report, console)
-    console.print(f"Report: {report_path}")
-    console.print(f"Replay: uv run python -m builder.demo --replay {report_path}")
+    console.print(f"Details saved in {report_path}", style="dim")
     return (
         0
         if first.decision == "promote"
