@@ -2,7 +2,6 @@ import unittest
 
 from auditor import audit_run
 
-
 INTENT = {"intent_id": "buy-001", "symbol": "AAPL", "side": "buy", "qty": 10}
 
 
