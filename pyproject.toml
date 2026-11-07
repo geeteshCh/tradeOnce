@@ -18,6 +18,11 @@ dependencies = [
     "pymongo>=4.15,<5",
 ]
 
+[project.optional-dependencies]
+presentation = [
+    "textual>=8.2.8,<9",
+]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 

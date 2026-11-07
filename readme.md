@@ -38,6 +38,31 @@ asciinema play runs/demo.cast
 The application reuses its existing [Rich](https://rich.readthedocs.io/en/stable/console.html)
 dependency and does not require a new presentation framework.
 
+### Expandable terminal steps
+
+The optional [Textual](https://textual.textualize.io/widgets/collapsible/) view
+keeps the current step open and folds finished steps into short summaries.
+Click a heading, or focus it and press Enter, to reopen its actual details.
+
+```bash
+# Inspect the recorded real run without model calls:
+uv run --extra presentation python -m builder.terminal_view --replay demo/recorded/argon-coding.json
+# Run the same view against a fresh real Builder run:
+direnv exec . uv run --extra presentation python -m builder.terminal_view
+```
+
+The extra is optional; the ordinary terminal command above still uses Rich alone.
+For browser interaction, an optional local ttyd instance can forward clicks to
+the actual terminal application:
+
+```bash
+ttyd -i 127.0.0.1 -p 8768 -W -O -m 1 uv run --extra presentation python -m builder.terminal_view --replay demo/recorded/argon-coding.json
+```
+
+Open `http://127.0.0.1:8768`. The recording is clearly labeled; omit `--replay`
+only when you intend to start a fresh run. Closing a live view stops its owned
+Builder process. Detailed evidence remains in the saved run.
+
 The first task reproduces the original Executor's duplicate order in the true
 broker ledger. Harness² sees that reference execution, refines the Builder's
 four instruction files, and calls the Argon coding Builder for each candidate.
