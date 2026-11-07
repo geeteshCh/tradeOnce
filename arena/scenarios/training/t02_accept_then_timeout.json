@@ -1,0 +1,4 @@
+{"id": "t02_accept_then_timeout", "seed": 2, "description": "Broker records and fills the order, but the response hangs past the client timeout. Retrying blindly places a duplicate.",
+ "intents": [{"intent_id": "i1", "symbol": "AAPL", "side": "buy", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "accept_then_timeout", "params": {"delay_s": 1.5}}],
+ "prices": {"AAPL": 200.0}}

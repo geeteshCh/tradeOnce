@@ -1,11 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+.direnv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 .env
 .env.*
 !.env.example
-.direnv/
-.venv/
-__pycache__/
-*.py[cod]
-.mypy_cache/
-.ruff_cache/
+# The hidden held-out set must never be in the public repo (the Builder's sandbox can search the web).
 auditor/hidden/
 hidden_set/
+runs/
+events.jsonl
