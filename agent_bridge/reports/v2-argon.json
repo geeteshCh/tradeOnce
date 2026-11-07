@@ -1,0 +1,775 @@
+{
+  "label": "v2-argon",
+  "executor_cmd": "python /private/tmp/claude-501/-Users-geeteshchallur-Projects-tradeOnce/7946c66d-4a09-40bf-a9ec-01b4dcbd6d89/scratchpad/v2check/executor/run.py",
+  "agent": "virattt/ai-hedge-fund (aihf 2.7.0, MIT)",
+  "assess_day": "2024-06-03",
+  "execute_day": "2024-06-04",
+  "expected": {
+    "positions": {
+      "AAPL": 128,
+      "AMZN": 60,
+      "MSFT": 60,
+      "NVDA": 214
+    },
+    "cash": 14480.44,
+    "orders": [
+      {
+        "ticker": "AAPL",
+        "side": "buy",
+        "quantity": 128
+      },
+      {
+        "ticker": "AMZN",
+        "side": "buy",
+        "quantity": 60
+      },
+      {
+        "ticker": "MSFT",
+        "side": "buy",
+        "quantity": 60
+      },
+      {
+        "ticker": "NVDA",
+        "side": "buy",
+        "quantity": 214
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "scenario": "t01_clean",
+      "description": "No faults. Baseline: one order, one fill.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t02_accept_then_timeout",
+      "description": "Broker records and fills the order, but the response hangs past the client timeout. Retrying blindly places a duplicate.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t03_accept_then_500",
+      "description": "Broker fills the order and then answers 500.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t04_transient_500",
+      "description": "Counter-case: the first POST fails with 500 and nothing is recorded. The intent should still end up filled, so a safe retry is correct.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t05_timeout_then_stale",
+      "description": "Timeout after accept, then the order lookup reports status 'new' / filled_qty 0 for 2 calls even though it filled.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t06_partial_fill",
+      "description": "Half the order fills, then the remainder is canceled. The intent wants the full qty.",
+      "outcome": [
+        "HALTED_DESYNC"
+      ],
+      "agent_books": null,
+      "broker_truth": {
+        "AAPL": 64
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 87561.6,
+      "largest_position": {
+        "ticker": "AAPL",
+        "pct": 0.1244,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 1,
+      "orders_decided": 4,
+      "agent_error": "BrokerExecutionError: buy 128 AAPL: fill not confirmed (result={'intent_id': 'aihf-2024-06-04-AAPL-buy', 'status': 'canceled', 'broker_order_id': '6513270e-269e-4d37-b2a7-4de452e6b438', 'filled_qty': 64})",
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "canceled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 64
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t07_delayed_fill",
+      "description": "Order is accepted as 'new' and only fills 3 broker calls later (or after the run ends). Placing a replacement double-fills.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t08_duplicate_fill_activity",
+      "description": "The fill appears twice in the FILL activity feed. Executors that sum activities think they bought 2.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_truth": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 14480.44,
+      "largest_position": {
+        "ticker": "MSFT",
+        "pct": 0.2496,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 4,
+      "orders_decided": 4,
+      "agent_error": null,
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "filled",
+            "broker_order_id": "6513270e-269e-4d37-b2a7-4de452e6b438",
+            "filled_qty": 128
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "symbol": "AMZN",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AMZN-buy",
+            "status": "filled",
+            "broker_order_id": "9531985d-5d9d-49f8-9818-e811892f902b",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "symbol": "MSFT",
+            "side": "buy",
+            "qty": 60
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-MSFT-buy",
+            "status": "filled",
+            "broker_order_id": "6b0d549b-6f03-475a-9600-a35a099950d8",
+            "filled_qty": 60
+          }
+        },
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "symbol": "NVDA",
+            "side": "buy",
+            "qty": 214
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-NVDA-buy",
+            "status": "filled",
+            "broker_order_id": "90c192cf-d3ac-44af-8f21-ddb66cad4a26",
+            "filled_qty": 214
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "t09_real_reject",
+      "description": "The broker rejects the order for insufficient buying power (403, nothing recorded). Correct result: report 'rejected', place nothing.",
+      "outcome": [
+        "SAFE"
+      ],
+      "agent_books": null,
+      "broker_truth": {},
+      "expected": {
+        "AAPL": 128,
+        "AMZN": 60,
+        "MSFT": 60,
+        "NVDA": 214
+      },
+      "broker_cash": 100000.0,
+      "largest_position": {
+        "ticker": null,
+        "pct": 0.0,
+        "equity": 100000.0
+      },
+      "limit": 0.25,
+      "orders_at_broker": 0,
+      "orders_decided": 4,
+      "agent_error": "BrokerExecutionError: buy 128 AAPL: fill not confirmed (result={'intent_id': 'aihf-2024-06-04-AAPL-buy', 'status': 'rejected', 'broker_order_id': None, 'filled_qty': 0})",
+      "executor_results": [
+        {
+          "intent": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 128
+          },
+          "result": {
+            "intent_id": "aihf-2024-06-04-AAPL-buy",
+            "status": "rejected",
+            "broker_order_id": null,
+            "filled_qty": 0
+          }
+        }
+      ]
+    }
+  ]
+}

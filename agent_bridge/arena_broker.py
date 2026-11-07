@@ -63,7 +63,8 @@ class ArenaBroker:
 
     def place_order(self, order: Order) -> Fill:
         # Stable per decision: the same order in the same session can never become two intents.
-        intent = {"intent_id": f"{self.run_id}-{self.session}-{order.ticker}-{order.side}",
+        ticker_id = order.ticker.replace("/", "")       # crypto symbols like ETH/USD; keep ids URL-safe
+        intent = {"intent_id": f"{self.run_id}-{self.session}-{ticker_id}-{order.side}",
                   "symbol": order.ticker, "side": order.side, "qty": order.quantity}
         result = self._run_executor(intent, order)
         self.results.append({"intent": intent, "result": result})

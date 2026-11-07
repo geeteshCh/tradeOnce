@@ -1,0 +1,33 @@
+{
+  "_note": "Real daily closes (unadjusted) from Yahoo Finance via yfinance, 2026-11-02 to 2026-11-06. Fetched once and frozen so every run is identical.",
+  "2026-11-02": {
+    "ETH/USD": 2248.89,
+    "LTC/USD": 53.63,
+    "SOL/USD": 91.84,
+    "SPY": 752.1
+  },
+  "2026-11-03": {
+    "ETH/USD": 2272.73,
+    "LTC/USD": 54.34,
+    "SOL/USD": 92.92,
+    "SPY": 754.35
+  },
+  "2026-11-04": {
+    "ETH/USD": 2422.31,
+    "LTC/USD": 56.24,
+    "SOL/USD": 95.49,
+    "SPY": 766.81
+  },
+  "2026-11-05": {
+    "ETH/USD": 2234.48,
+    "LTC/USD": 51.55,
+    "SOL/USD": 89.14,
+    "SPY": 733.0
+  },
+  "2026-11-06": {
+    "ETH/USD": 2235.05,
+    "LTC/USD": 52.54,
+    "SOL/USD": 90.06,
+    "SPY": 735.29
+  }
+}

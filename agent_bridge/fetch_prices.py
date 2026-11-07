@@ -23,22 +23,26 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2024-06-03")
     ap.add_argument("--end", default="2024-06-07", help="inclusive")
-    ap.add_argument("--tickers", default="AAPL,AMZN,MSFT,NVDA")
+    ap.add_argument("--tickers", default="AAPL,AMZN,MSFT,NVDA", help="stocks, or crypto as Alpaca writes it: ETH/USD")
+    ap.add_argument("--out", type=Path, default=OUT)
     args = ap.parse_args()
 
     tickers = sorted({t.strip().upper() for t in args.tickers.split(",") if t.strip()} | {"SPY"})
+    yahoo = {t: t.replace("/", "-") for t in tickers}          # Yahoo writes crypto as ETH-USD
     end_exclusive = (date.fromisoformat(args.end) + timedelta(days=1)).isoformat()
-    df = yf.download(tickers, start=args.start, end=end_exclusive, progress=False, auto_adjust=False)["Close"]
+    df = yf.download(list(yahoo.values()), start=args.start, end=end_exclusive, progress=False, auto_adjust=False)["Close"]
     closes: dict[str, dict[str, float]] = {}
     for ts, row in df.iterrows():
         day = ts.date().isoformat()
-        closes[day] = {t: round(float(row[t]), 2) for t in tickers if row[t] == row[t]}  # skip NaN
+        if row[yahoo["SPY"]] != row[yahoo["SPY"]]:              # keep the agent's trading-day grid (SPY's days)
+            continue
+        closes[day] = {t: round(float(row[y]), 2) for t, y in yahoo.items() if row[y] == row[y]}  # skip NaN
     if not closes:
         raise SystemExit("yfinance returned no data; check tickers and dates")
     payload = {"_note": f"Real daily closes (unadjusted) from Yahoo Finance via yfinance, {args.start} to {args.end}. "
                         "Fetched once and frozen so every run is identical.", **closes}
-    OUT.write_text(json.dumps(payload, indent=2) + "\n")
-    print(f"wrote {len(closes)} days x {len(tickers)} tickers to {OUT}")
+    args.out.write_text(json.dumps(payload, indent=2) + "\n")
+    print(f"wrote {len(closes)} days x {len(tickers)} tickers to {args.out}")
 
 
 if __name__ == "__main__":

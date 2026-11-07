@@ -24,8 +24,8 @@ def _load(name: str) -> dict:
 class RecordedDataClient:
     """Implements the parts of hedge_fund's DataClient the pipeline uses: one bar per recorded day."""
 
-    def __init__(self, closes: dict[str, dict[str, float]] | None = None):
-        self.closes = closes or _load("closes.json")
+    def __init__(self, closes: dict[str, dict[str, float]] | None = None, closes_file: str = "closes.json"):
+        self.closes = closes or _load(closes_file)
         self.days = sorted(self.closes)
 
     def get_prices(self, ticker: str, start_date: str, end_date: str, **kwargs) -> list[Price]:
@@ -62,7 +62,7 @@ class CachedAnalyst:
         return Signal(model_name=self._name, ticker=ticker, date=date, value=value, metadata={"cached": True})
 
 
-def cached_analysts() -> dict[str, CachedAnalyst]:
-    signals = _load("signals.json")
+def cached_analysts(signals_file: str = "signals.json") -> dict[str, CachedAnalyst]:
+    signals = _load(signals_file)
     names = sorted({n for day in signals.values() for n in day})
     return {n: CachedAnalyst(n, {d: v.get(n, {}) for d, v in signals.items()}) for n in names}

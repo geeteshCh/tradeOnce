@@ -14,3 +14,4 @@ auditor/hidden/
 hidden_set/
 runs/
 events.jsonl
+.DS_Store

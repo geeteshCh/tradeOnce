@@ -30,24 +30,30 @@ Enforce allowed writes and private-data access through execution isolation; a pr
 
 ## Status and next steps (read this first)
 
-*Updated Saturday 2026-11-07, about 2:30 PM. Submissions close at 5:00 PM.*
+*Updated Saturday 2026-11-07, about 3:35 PM. Submissions close at 5:00 PM.*
 
 ### Done and verified
 
 | Piece | Where | Proof |
 |---|---|---|
-| Arena (fake, unreliable broker) | `arena/` | `uv run pytest -q`: 50 passed, 5 skipped (integration tests that need MongoDB or API keys) |
+| Arena (fake, unreliable broker) | `arena/` | `uv run pytest -q`: 102 passed, 8 skipped (integration tests that need MongoDB or API keys) |
 | Round loop, versioning, Stage view | `loop/`, `stage/` | `uv run python -m loop.run` promotes v0 → v3 with **scripted** candidates (hand-written stand-ins) |
 | Judge's auditor wired into the loop | `loop/judge.py` → `auditor.audit_run` | called on every run |
-| External agent through our layer | `agent_bridge/` | ai-hedge-fund (unmodified), naive v0: **4/9 safe**; a timeout makes it hold 50% AAPL against its own 25% limit |
-| Real broker with injected faults | `arena/alpaca_proxy.py`, `arena/live_soak.py` | Alpaca **paper**, same 10 seeded faults: v0 sent **14 orders (4 duplicates)**, scripted v3 sent **10 (0)** |
+| **LLM-written Executor** (Harness² + `gemini-4-argon`) | `builder/`, `harnessing/`; recorded run `demo/recorded/argon-coding.json`; v2 saved as files in `demo/promoted/argon-v2/` (see its `PROVENANCE.md`) | v1 and v2 promoted by the fixed auditor (5/5 hidden each). Measured here: v2 passes 8/9 Arena training (fails partial fills) |
+| External agent through our layer (Arena) | `agent_bridge/run_baseline.py` | ai-hedge-fund (unmodified), same 9 faults: v0 **4/9 safe** (50% AAPL against its own 25% limit), **Argon v2 8/9 safe** |
+| **End to end on a real broker** | `agent_bridge/run_side_by_side.py` | ai-hedge-fund's crypto decisions → fault proxy → **Alpaca paper**, real order IDs and fills: v0 **0/6 safe, 3 duplicates, ETH 45% against a 25% limit**; Argon v2 **6/6 safe, 0 duplicates** |
+| Real broker soak with injected faults | `arena/alpaca_proxy.py`, `arena/live_soak.py` | Alpaca paper, same 10 seeded faults: v0 sent **14 orders (4 duplicates)**, scripted v3 sent **10 (0)** |
 | The agent alone, live | `aihf` CLI | made a real decision on Friday's session: buy AAPL on an earnings beat, capped by its risk limit |
 
-The Arena/Loop and Harness² integration are merged into `main`; build on those existing interfaces.
+**Finding from the real broker that the Arena missed:** on Alpaca, an order's first reply says `pending_new`, and the fill lands a moment later. v0 takes that first reply as final, so even with **no fault** the agent halted after one order while that order had actually filled. Argon v2 polls to a final state and completed every run. The Arena's `delayed_fill` fault reproduces this; make it a default case in any large simulation.
 
-### The one thing still missing
+**Honest labels for every demo:** the analyst signals are made-up stand-ins (the agent's pipeline is real and unmodified); Alpaca is the paper account (fake money, real API and order IDs); faults on Alpaca are injected in transit by our proxy; "scripted" candidates are hand-written.
 
-A promoted Executor **written by an LLM**. Every promotion so far uses scripted candidates. That is the heart of *The System That Gets Better*, so it comes first.
+### What's still missing
+
+1. **The shared loop running the Harness² Builder.** The LLM-written versions come from the standalone coding demo (`builder/demo.py`). The shared loop (`loop/run.py`) still runs scripted candidates by default. Wire the Harness² Builder in through `--builder module:function` (see the teammate handover in the README and PR #8).
+2. **Partial fills.** Argon v2 doesn't handle `partial_fill_then_cancel`. That's the next attack for a promotion round.
+3. **The 10,000-trade simulation and live dashboard** (spec below in [Mass simulation and live dashboard](#mass-simulation-and-live-dashboard-spec-not-built)).
 
 ### Next steps by owner
 
@@ -451,6 +457,122 @@ uv run python -m arena.live_soak --n 200 --seed 7 --label v2 --executor-dir runs
 ```
 
 Local check through the proxy (Arena upstream, 40 trades, seed 7): naive v0 put **53 orders at the broker for 40 trades (13 duplicates)**; the round-4 scripted Executor put **40 (0 duplicates)**. Reports go to `runs/soak/` (gitignored).
+
+---
+
+## End to end: ai-hedge-fund → faults → Alpaca paper, v0 vs LLM-written v2 (`agent_bridge/run_side_by_side.py`)
+
+The full demo path, with real fills on a weekend:
+- **The external agent** (ai-hedge-fund, unmodified pipeline, cached analysts) decides crypto trades on real Yahoo closes (`recorded/crypto_closes.json`, Nov 2–6, 2026).
+- Its orders go through `ArenaBroker` to an Executor, then through the fault proxy (the same seeded fault for each Executor), then to **Alpaca paper**, which fills crypto 24/7.
+- Every run gets a **clean $20k book** on the shared paper account: positions and cash are deltas from a snapshot taken just before the run, and everything the run bought is sold back afterwards.
+
+**The Executors compared:**
+- `v0`: `examples/naive_executor.py`.
+- `v2`: `demo/promoted/argon-v2/`, **written by `gemini-4-argon`** in the recorded Harness² run, rebuilt from its stored diff. See `PROVENANCE.md`. It scores 8/9 on Arena training, and fails partial fills.
+
+```bash
+set -a && source .env && set +a           # Alpaca PAPER keys (repo-root .env, gitignored)
+cd agent_bridge && uv run python run_side_by_side.py
+```
+
+**Dry run against a local Arena** (same prices; the agent decides buy 2 ETH, 95 LTC, 55 SOL):
+
+| Fault | v0 | v2 (Gemini Argon) |
+|---|---|---|
+| none, transient 500, 429 | SAFE | SAFE |
+| accept then timeout / accept then 500 / timeout then stale | **DUPLICATE + LIMIT_BREACH**: 4 orders for 3, ETH 45% against the agent's 25% limit | **SAFE** |
+| **total** | 3/6 safe, 3 duplicate orders | **6/6 safe, 0 duplicates** |
+
+**On Alpaca paper** (real orders, IDs and fills; `agent_bridge/reports/side_by_side.json`):
+
+| Fault | v0 | v2 (Gemini Argon) |
+|---|---|---|
+| none, transient 500, 429 | **HALTED** after 1 of 3 orders: Alpaca's first reply is `pending_new`, v0 treats it as final, and the order had actually filled | SAFE (3/3) |
+| accept then timeout / accept then 500 / timeout then stale | **DUPLICATE + LIMIT_BREACH + HALTED**: 2 ETH orders, ETH 45% against the 25% limit | SAFE (3/3) |
+| **total** | **0/6 safe, 3 duplicate orders** | **6/6 safe, 0 duplicates** |
+
+Options: `--upstream http://127.0.0.1:<port>` (dry run), `--executors "v0=...;v2=..."`, `--faults`, `--capital`, `--universe`. Report: `agent_bridge/reports/<label>.json`. Partial-fill and delayed-fill faults are broker-side, so they only happen in the Arena (`run_baseline.py`), not through the proxy.
+
+---
+
+## Mass simulation and live dashboard (spec, not built)
+
+**Goal:** ai-hedge-fund generates about **10,000 trades**. Every trade goes through each Executor (v0, Argon v2, the latest loop-promoted vN) against the **same seeded faults**, and a live 3D view shows the lanes side by side as the trades execute. One sentence for judges: *"Same agent, same 10,000 trades, same faults: watch the naive lane pile up duplicates while ours stays clean."*
+
+**Framing rule:** the hackathon disqualifies projects where a dashboard is the main feature. This view **visualizes the core loop** (the agent, our self-improving layer, the broker). It is not the product. Keep it as one screen of the demo, not the pitch.
+
+### Where the 10,000 trades come from
+
+- **ai-hedge-fund's real, unmodified pipeline** (`assess_fund` + `execute_decision` via `agent_bridge/agent_setup.build_fund`), run over many sessions. Each `Order` it emits is one trade.
+- **Prices:** real daily closes from Yahoo through `agent_bridge/fetch_prices.py` (free, no key). For example, 2 years × 20–30 tickers, stocks and crypto. Fetch once, freeze to `agent_bridge/recorded/`.
+- **Analyst signals:** live LLM analysts for 10,000 decisions would be slow and expensive, and different every run. Use a **seeded signal generator** that writes cached convictions per (date, ticker, analyst) and feeds `CachedAnalyst`. **Label them in the UI as stand-ins.**
+- **Getting to 10,000:** daily cycles × tickers × several funds (different capital, risk limits, strategies) until the order count reaches about 10k. Rebalances also produce sells, so both sides get exercised.
+- Precompute the trade list once into `runs/sim/<id>/trades.jsonl` with `{trade_id, fund, session, symbol, side, qty, mark}`, so every lane gets identical inputs.
+
+### Where they execute
+
+- **The Arena only** (`arena_server()`), never Alpaca. Alpaca allows about 200 requests/minute, so 10k trades would take hours and risk the paper account. Optionally run a small sample of about 100 through `arena/alpaca_proxy.py` on Alpaca paper for a "real broker" badge.
+- **One lane per Executor:** v0 (`examples/naive_executor.py`), Argon v2 (`demo/promoted/argon-v2/`), and the latest promoted version (`runs/<run>/evo`). Each lane has its own Arena instance and its own clean book.
+- **Fault schedule:** seeded per `trade_id`, identical across lanes. Mix all 9 Arena faults, including the broker-side ones the proxy can't do (`delayed_fill`, `partial_fill_then_cancel`, `duplicate_fill`). Make **`delayed_fill` with `after_calls ≥ 1` common**, since it reproduces Alpaca's real `pending_new` first reply. Suggested mix: 50% clean, 50% spread over the 9 faults; expose it as a CLI flag.
+- **Speed:** each trade costs 0.1–2s (timeouts). Run lanes and trade shards in parallel worker processes, each with its own Arena, e.g. 16 workers. Shorten `delay_s` to 0.6 (the Executor timeout is 0.5). Target: 10k trades × 3 lanes in about 10–15 minutes.
+
+### Metrics per lane (live and final)
+
+Trades done; orders at the broker (and the ratio to decided orders); **duplicate orders**; missing or unfilled trades; **limit breaches** (over 25% of equity in one name); negative cash; agent halts; books-vs-broker mismatches; dollar exposure error (|broker holdings − decided| × price); broker calls per trade; p50/p95 time per trade. Each one split by fault type.
+
+### Event stream (the contract between simulator and UI)
+
+`runs/sim/<id>/events.jsonl`, one JSON object per line, also streamed over SSE:
+
+```json
+{"ts": 1762553000.12, "sim_id": "sim-7", "lane": "v2", "seq": 4182, "trade_id": "t-004182",
+ "fund": "f3", "session": "2025-03-04", "symbol": "NVDA", "side": "buy", "qty": 12,
+ "fault": "accept_then_timeout", "outcome": "SAFE",
+ "orders_at_broker": 1, "broker_calls": 4, "elapsed_ms": 812,
+ "position_pct": 0.19, "cash": 41250.0,
+ "totals": {"trades": 4182, "duplicates": 0, "breaches": 0, "halts": 0, "mismatches": 0}}
+```
+
+Outcomes: `SAFE | DUPLICATE | LIMIT_BREACH | NEGATIVE_CASH | HALTED | BOOKS_WRONG | MISSING` (several can apply, so join them with `+`, as in `run_side_by_side.py`). Also emit `{"type": "lane_start", ...}` and `{"type": "lane_done", "totals": ...}`.
+
+### Proposed layout
+
+| Path | What |
+|---|---|
+| `sim/make_trades.py` | Fetch prices, generate seeded signals, run the agent → `trades.jsonl` |
+| `sim/mass_run.py` | Shard trades across workers; per worker: own Arena, load the fault, run the Executor, classify from the ledger; append to `events.jsonl` |
+| `sim/server.py` | FastAPI: `GET /` serves the UI, `GET /events?sim=<id>&from=<seq>` streams SSE by tailing `events.jsonl`, `GET /replay?speed=50` replays a finished run |
+| `stage/web/index.html` (+ `app.js`) | Three.js UI, plain JS, Three.js loaded from a CDN at a **pinned version** |
+
+Reuse rather than rewrite: `agent_bridge/agent_setup.py`, `recorded_data.py`, `arena_broker.ArenaBroker`, the clean-book logic in `run_side_by_side.py`, `arena.arena_server`, `arena.models.FAULT_TYPES`, `arena.run_training.check`.
+
+### The visualization
+
+- **Lanes side by side**, one per Executor, each a horizontal track: **agent → Executor → broker**.
+- **Each trade is a particle** traveling the track. If a fault fires, the Executor → broker link flashes. On arrival:
+  - **green:** SAFE
+  - **red burst:** DUPLICATE. Two particles arrive, and the extra one stacks into a growing red tower behind the lane.
+  - **amber:** HALTED
+  - **purple:** LIMIT_BREACH
+- **A HUD per lane:** live counters (trades, duplicates, breaches, halts) and a gauge showing the largest position against the 25% limit.
+- **Controls:** play/pause, speed (1×–100× in replay), seed, a lane toggle, and a fault filter. Click a particle to see its event JSON (fault, broker order IDs).
+- **Honest labels always on screen:** "Broker: simulated Arena", "Faults: injected", "Analyst signals: stand-ins", plus the Executor provenance (v0 naive; v2 written by `gemini-4-argon`, run `bf8959d802f7`).
+- **Performance:** `THREE.InstancedMesh` for particles, at most about 2,000 on screen at once (older ones fade into the counters), and events batched every 100ms.
+
+### Modes
+
+1. **Replay (MVP, needed for the video):** run the 10k offline as fast as possible, then `GET /replay` streams at a chosen speed. Deterministic, so record the demo from it.
+2. **Live (stretch):** the UI subscribes while `mass_run.py` is running.
+
+### Done when
+
+- [ ] `sim/make_trades.py` produces 10,000 or more trades from the unmodified agent, deterministic for a given seed.
+- [ ] `sim/mass_run.py` runs v0, Argon v2 and (if available) the loop's latest version on the same trades and faults, and writes `events.jsonl` with final totals per lane.
+- [ ] The UI replays a finished run with lanes side by side, live counters and honest labels, and a 60-second clip is recorded.
+- [ ] The final table (per lane × per fault: duplicates, breaches, halts) goes in the README next to the Alpaca results.
+
+**Time check:** the feature freeze is 4:00 PM. If this starts after 3:45, build replay mode with plain 2D canvas lanes first, and add Three.js only if time remains. Don't let it delay the video or the submission.
 
 ---
 

@@ -13,8 +13,8 @@ CAPITAL = 100_000.0
 MAX_POSITION_PCT = 0.25
 
 
-def build_fund() -> Fund:
-    analysts = cached_analysts()
+def build_fund(signals_file: str = "signals.json", capital: float = CAPITAL) -> Fund:
+    analysts = cached_analysts(signals_file)
     for name in analysts:
         ALPHA_MODEL_REGISTRY[name] = CachedAnalyst   # the agent validates analyst names against its registry
     spec = FundSpec(
@@ -23,6 +23,6 @@ def build_fund() -> Fund:
                      "models": [{"name": n} for n in analysts]}],
         risk={"max_position_pct": MAX_POSITION_PCT, "max_gross_exposure": 1.0},
         costs={"spread_bps": 0, "commission_per_share": 0},
-        capital=CAPITAL,
+        capital=capital,
     )
     return Fund(spec, models={"main": list(analysts.values())})

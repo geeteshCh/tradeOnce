@@ -1,0 +1,643 @@
+{
+  "upstream": "https://paper-api.alpaca.markets",
+  "executors": {
+    "v0": "python examples/naive_executor.py",
+    "v2": "python demo/promoted/argon-v2/executor/run.py"
+  },
+  "expected": {
+    "positions": {
+      "ETH/USD": 2,
+      "LTC/USD": 95,
+      "SOL/USD": 55
+    },
+    "orders": [
+      {
+        "ticker": "ETH/USD",
+        "side": "buy",
+        "quantity": 2
+      },
+      {
+        "ticker": "LTC/USD",
+        "side": "buy",
+        "quantity": 95
+      },
+      {
+        "ticker": "SOL/USD",
+        "side": "buy",
+        "quantity": 55
+      }
+    ]
+  },
+  "capital": 20000.0,
+  "rows": [
+    {
+      "fault": "none",
+      "executor": "v0",
+      "outcome": [
+        "HALTED"
+      ],
+      "orders_at_broker": 1,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.2229
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-none-b1e2e7-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': '872f91ea-051d-4",
+      "run_id": "tos-v0-none-b1e2e7",
+      "broker_orders": [
+        {
+          "id": "872f91ea-051d-4729-8c1b-265aef40b2f1",
+          "client_order_id": "f4569559-db48-4ac1-a24b-810f9ef08a21",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "none",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-none-caf9dd",
+      "broker_orders": [
+        {
+          "id": "c7c56b28-91b1-4135-88fd-c0e1614cc954",
+          "client_order_id": "tos-v2-none-caf9dd-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "2c0c2d22-b929-4101-9c6e-1937abdd517e",
+          "client_order_id": "tos-v2-none-caf9dd-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "170d8833-0e5f-4741-a96d-73fefcc6a529",
+          "client_order_id": "tos-v2-none-caf9dd-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "accept_then_timeout",
+      "executor": "v0",
+      "outcome": [
+        "DUPLICATE",
+        "LIMIT_BREACH",
+        "HALTED"
+      ],
+      "orders_at_broker": 2,
+      "orders_decided": 3,
+      "duplicate_orders": 1,
+      "broker_holds": {
+        "ETH/USD": 3.99
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.4459
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-accept-5849ca-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': 'f3c1437d-3a23",
+      "run_id": "tos-v0-accept-5849ca",
+      "broker_orders": [
+        {
+          "id": "50e3f14f-2a00-4415-9704-0f52e2eb9af2",
+          "client_order_id": "8a39408a-da7a-4ce3-beaa-19ac1e622ac2",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "f3c1437d-3a23-4f62-9939-3434f6cdb781",
+          "client_order_id": "aa82029f-c2a4-4e6b-af40-5e6271d45327",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "accept_then_timeout",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-accept-b3a1b7",
+      "broker_orders": [
+        {
+          "id": "b33da76c-5a48-44bc-8ea4-2e5f869c824e",
+          "client_order_id": "tos-v2-accept-b3a1b7-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "23bd3dcd-8718-42d4-99b6-e9db052eeb43",
+          "client_order_id": "tos-v2-accept-b3a1b7-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "5f5f2a85-18d1-40d2-bb73-973cd485cf40",
+          "client_order_id": "tos-v2-accept-b3a1b7-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "accept_then_500",
+      "executor": "v0",
+      "outcome": [
+        "DUPLICATE",
+        "LIMIT_BREACH",
+        "HALTED"
+      ],
+      "orders_at_broker": 2,
+      "orders_decided": 3,
+      "duplicate_orders": 1,
+      "broker_holds": {
+        "ETH/USD": 3.99
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.4459
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-accept-ca1332-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': 'd1c4a4ac-ca0c",
+      "run_id": "tos-v0-accept-ca1332",
+      "broker_orders": [
+        {
+          "id": "f73edf25-4f29-476b-a448-eecb8385c817",
+          "client_order_id": "130783ee-337e-4123-bdfb-5ae96868fcd9",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "d1c4a4ac-ca0c-476e-8e67-547a14f8d48f",
+          "client_order_id": "a8f28370-082f-4354-a39e-9b1d9bf15285",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "accept_then_500",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-accept-3e2d9b",
+      "broker_orders": [
+        {
+          "id": "780b0a11-4288-4929-a156-bce5a65d76d1",
+          "client_order_id": "tos-v2-accept-3e2d9b-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "8a9fdcfb-eccc-421a-b8a0-21d586d4563b",
+          "client_order_id": "tos-v2-accept-3e2d9b-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "bda10c37-fcdf-4ba7-bf91-a00eda4cc37b",
+          "client_order_id": "tos-v2-accept-3e2d9b-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "timeout_then_stale",
+      "executor": "v0",
+      "outcome": [
+        "DUPLICATE",
+        "LIMIT_BREACH",
+        "HALTED"
+      ],
+      "orders_at_broker": 2,
+      "orders_decided": 3,
+      "duplicate_orders": 1,
+      "broker_holds": {
+        "ETH/USD": 3.99
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.4459
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-timeou-9c52fb-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': '5a0d7617-f619",
+      "run_id": "tos-v0-timeou-9c52fb",
+      "broker_orders": [
+        {
+          "id": "f147a883-965a-4a04-a79d-1b6fced9862e",
+          "client_order_id": "85ba37ad-61b3-4c48-93b4-4b5e48ebf61d",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "5a0d7617-f619-4f28-8634-1e3a6fa9925f",
+          "client_order_id": "246a3038-433b-412a-a10f-d9640a2b8804",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "timeout_then_stale",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-timeou-357ba3",
+      "broker_orders": [
+        {
+          "id": "7563801c-3a3a-4f1f-9746-05654b96136e",
+          "client_order_id": "tos-v2-timeou-357ba3-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "e76b00ff-a55f-4355-a0d0-04670e8b51d3",
+          "client_order_id": "tos-v2-timeou-357ba3-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "2cd39ad1-b2c1-48eb-a88b-2e963b95314e",
+          "client_order_id": "tos-v2-timeou-357ba3-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "transient_500",
+      "executor": "v0",
+      "outcome": [
+        "HALTED"
+      ],
+      "orders_at_broker": 1,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.2229
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-transi-84ee85-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': '6ca1cec2-2c41",
+      "run_id": "tos-v0-transi-84ee85",
+      "broker_orders": [
+        {
+          "id": "6ca1cec2-2c41-45cd-95ea-6663b98e550d",
+          "client_order_id": "ca2aba7e-2538-4a2c-8c76-40ab0a77a649",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "transient_500",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-transi-db05a7",
+      "broker_orders": [
+        {
+          "id": "cdb79ed2-d19e-4bfa-9d78-89877c259864",
+          "client_order_id": "tos-v2-transi-db05a7-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "37dfab03-2b2c-464b-862c-fecb8f5c123c",
+          "client_order_id": "tos-v2-transi-db05a7-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "169edd7f-e0ca-4128-afac-7b7bf61dd544",
+          "client_order_id": "tos-v2-transi-db05a7-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "rate_limit_429",
+      "executor": "v0",
+      "outcome": [
+        "HALTED"
+      ],
+      "orders_at_broker": 1,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "ETH/USD",
+        "pct": 0.2229
+      },
+      "agent_books": null,
+      "agent_raised": "BrokerExecutionError: buy 2 ETH/USD: fill not confirmed (result={'intent_id': 'tos-v0-rate_l-8631c0-2026-11-06-ETHUSD-buy', 'status': 'pending_new', 'broker_order_id': '7a96df6c-4eec",
+      "run_id": "tos-v0-rate_l-8631c0",
+      "broker_orders": [
+        {
+          "id": "7a96df6c-4eec-4bae-8dcb-35d83e7adae0",
+          "client_order_id": "8781705f-34ad-4225-be4f-1a523d06bd9a",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        }
+      ]
+    },
+    {
+      "fault": "rate_limit_429",
+      "executor": "v2",
+      "outcome": [
+        "SAFE"
+      ],
+      "orders_at_broker": 3,
+      "orders_decided": 3,
+      "duplicate_orders": 0,
+      "broker_holds": {
+        "ETH/USD": 1.995,
+        "LTC/USD": 94.7625,
+        "SOL/USD": 54.8625
+      },
+      "expected": {
+        "ETH/USD": 2,
+        "LTC/USD": 95,
+        "SOL/USD": 55
+      },
+      "largest_position": {
+        "ticker": "LTC/USD",
+        "pct": 0.2489
+      },
+      "agent_books": {
+        "SOL/USD": 55,
+        "ETH/USD": 2,
+        "LTC/USD": 95
+      },
+      "agent_raised": null,
+      "run_id": "tos-v2-rate_l-59f013",
+      "broker_orders": [
+        {
+          "id": "b3397b97-795e-4165-9b16-799d147c745a",
+          "client_order_id": "tos-v2-rate_l-59f013-2026-11-06-ETHUSD-buy",
+          "symbol": "ETH/USD",
+          "side": "buy",
+          "qty": "2",
+          "filled_qty": "2",
+          "status": "filled"
+        },
+        {
+          "id": "6092341d-54af-43ab-859e-f86b7f2d4fbb",
+          "client_order_id": "tos-v2-rate_l-59f013-2026-11-06-LTCUSD-buy",
+          "symbol": "LTC/USD",
+          "side": "buy",
+          "qty": "95",
+          "filled_qty": "95",
+          "status": "filled"
+        },
+        {
+          "id": "664c3eda-bcdf-4f12-9aae-5a6a9677223a",
+          "client_order_id": "tos-v2-rate_l-59f013-2026-11-06-SOLUSD-buy",
+          "symbol": "SOL/USD",
+          "side": "buy",
+          "qty": "55",
+          "filled_qty": "55",
+          "status": "filled"
+        }
+      ]
+    }
+  ]
+}
