@@ -337,6 +337,26 @@ Alone (`run_alone.py`), the agent decides 4 orders on the cached signals: buy 12
 
 ---
 
+## Live soak on Alpaca paper (`arena/alpaca_proxy.py`, `arena/live_soak.py`)
+
+Real brokers don't fail on demand, so a **fault proxy** sits in front of Alpaca **paper**: every order really reaches Alpaca, then the proxy injects the fault on the way back (accept-then-timeout, accept-then-500, timeout-then-stale-status, transient 500, 429). The proxy adds Alpaca's auth headers itself, so Executors need no changes.
+
+- **Paper only.** The proxy refuses any upstream except `paper-api.alpaca.markets` or localhost; `api.alpaca.markets` (live) is always refused.
+- **Weekends:** use crypto (`--symbols LTC/USD`, the default). Alpaca paper trades crypto 24/7 and accepts only `gtc`/`ioc`, so the proxy rewrites `day` to `gtc` for symbols with a `/`. Stock orders placed while the market is closed just queue.
+- Paced to `--rpm 150` (Alpaca allows about 200 requests/minute). Orders left open are canceled at the end.
+- Counts from the broker side: orders that reached the broker per intent. A correct Executor places exactly 1.
+
+```bash
+export APCA_API_KEY_ID=... APCA_API_SECRET_KEY=...            # Alpaca PAPER keys, your own shell only
+uv run python -m arena.live_soak --n 200 --seed 7 --label v0 --executor-cmd "python examples/naive_executor.py"
+uv run python -m arena.live_soak --n 200 --seed 7 --label v2 --executor-dir runs/<run>/evo   # same seed = same faults
+# dry run without Alpaca: --upstream http://127.0.0.1:<arena port>
+```
+
+Local check through the proxy (Arena upstream, 40 trades, seed 7): naive v0 put **53 orders at the broker for 40 trades (13 duplicates)**; the round-4 scripted Executor put **40 (0 duplicates)**. Reports go to `runs/soak/` (gitignored).
+
+---
+
 ## Agent stack (use existing tools, build only what's ours)
 
 | Part | Tool | Why |
