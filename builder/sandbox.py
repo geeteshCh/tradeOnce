@@ -149,14 +149,21 @@ class SandboxRunner:
             f'(allow file-map-executable (subpath "{_seatbelt(path)}"))'
             for path in runtime_roots
         )
+        framework_launcher = (
+            Path(sys.base_prefix)
+            / "Resources"
+            / "Python.app"
+            / "Contents"
+            / "MacOS"
+            / "Python"
+        ).resolve()
         return f"""(version 1)
 (deny default)
 (import "dyld-support.sb")
-(allow process*)
-(allow process-exec*)
 (allow process-exec
     (literal "{_seatbelt(self._python)}")
-    (literal "{_seatbelt(self._python.resolve())}"))
+    (literal "{_seatbelt(self._python.resolve())}")
+    (literal "{_seatbelt(framework_launcher)}"))
 (allow sysctl-read)
 (allow mach-lookup)
 (allow file-read-metadata file-test-existence)

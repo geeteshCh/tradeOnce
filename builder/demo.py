@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
@@ -56,16 +57,24 @@ def present(
         "and updated executor/LESSONS.md."
     )
     lines = first.diff.splitlines()
-    focus = next(
+    code_start = next(
         (
             index
             for index, line in enumerate(lines)
+            if line.startswith("diff --git a/executor/run.py")
+        ),
+        0,
+    )
+    focus = next(
+        (
+            index
+            for index, line in enumerate(lines[code_start:], start=code_start)
             if line.startswith("+")
             and "client_order_id" in line
             and ('"' in line or "'" in line)
             and not line.startswith('+"""')
         ),
-        0,
+        code_start,
     )
     start = max(0, focus - 6)
     console.print(
@@ -92,7 +101,7 @@ def present(
     console.print(table)
     console.print(
         Panel(
-            first.lesson[:1200],
+            Markdown(first.lesson[:1200]),
             title=f"4. Approved lesson persisted in MongoDB · revision {first.memory_revision}",
             border_style="green",
         )

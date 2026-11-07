@@ -60,6 +60,8 @@ class SandboxRunnerTests(unittest.TestCase):
 import json
 import os
 import socket
+import subprocess
+import sys
 from pathlib import Path
 
 probe = {{
@@ -102,6 +104,19 @@ try:
     probe["venv_write"] = "written"
 except Exception as exc:
     probe["venv_write"] = type(exc).__name__
+try:
+    child_pid = os.fork()
+    if child_pid == 0:
+        os._exit(0)
+    os.waitpid(child_pid, 0)
+    probe["fork"] = "spawned"
+except Exception as exc:
+    probe["fork"] = type(exc).__name__
+try:
+    subprocess.run([sys.executable, "-c", "pass"], check=True)
+    probe["subprocess"] = "spawned"
+except Exception as exc:
+    probe["subprocess"] = type(exc).__name__
 print(json.dumps([{{"intent_id": "intent-1", "status": "failed", "probe": probe}}]))
 """
         )
@@ -137,6 +152,8 @@ print(json.dumps([{{"intent_id": "intent-1", "status": "failed", "probe": probe}
         self.assertNotEqual(probe["other_loopback"], "connected")
         self.assertEqual(probe["venv_write"], "PermissionError")
         self.assertFalse(venv_leak.exists())
+        self.assertEqual(probe["fork"], "PermissionError")
+        self.assertEqual(probe["subprocess"], "PermissionError")
 
     def test_legitimate_executor_can_submit_to_local_arena(self):
         self.write_executor(
