@@ -104,9 +104,95 @@ direnv exec . env RUN_MONGODB_TESTS=1 uv run python -m unittest discover -s test
 The integration tests create unique test records and remove only their own
 documents. They never drop a database or collection.
 
+## Model API clients
+
+The `providers` package exposes two small synchronous clients:
+
+| Client | Default model | Use |
+| --- | --- | --- |
+| `GeminiClient` | `gemini-4-argon` | Builder text, code proposals, and Pydantic structured responses |
+| `SubQClient` | `subq-snap-1.1` | Judge rubric assessments with a probability for each yes/no question |
+
+Set `GEMINI_API_KEY` and `SUBQ_API_KEY` in your private `.env`. Optional
+`GEMINI_MODEL` and `SUBQ_MODEL` override the defaults. Argon access is specific
+to the provisioned hackathon account; teammates need credentials with that access.
+Run `uv sync` after updating the checkout.
+
+Gemini uses Google's official `google-genai` SDK. Snap uses its documented
+Decisions endpoint through `httpx`; it is a scoring API, not the gated SubQ
+Preview text-generation API. Both clients reuse connections, have a configurable
+30-second timeout, and make one attempt per call. Provider errors propagate;
+the caller controls retries and budget. Override `timeout_seconds` by constructing
+`GeminiSettings` or `SubQSettings` explicitly. Use context managers to close clients.
+
+### Builder: typed Gemini output
+
+```python
+from pydantic import BaseModel
+from providers import GeminiClient
+
+class ImprovementPlan(BaseModel):
+    summary: str
+    steps: list[str]
+
+with GeminiClient.from_env() as gemini:
+    plan = gemini.generate_structured(
+        "Propose a minimal fix for an executor that retries a timed-out order "
+        "and accidentally places it twice. Use client_order_id reconciliation.",
+        ImprovementPlan,
+        system_instruction="Use the training trace and editable code only.",
+        max_output_tokens=2048,
+    )
+    print(plan.model_dump_json(indent=2))
+
+    # For plain text or code instead:
+    text = gemini.generate_text("Explain lookup-before-retry in one sentence.")
+```
+
+Your Builder can supply its own Pydantic response model and include the current
+code and training traces in the prompt. It still owns patch application and
+evaluation; the API client only returns model output.
+
+### Judge: typed SubQ rubric scores
+
+```python
+from providers import BinaryCriteria, BinaryQuestion, SubQClient
+
+with SubQClient.from_env() as subq:
+    assessment = subq.evaluate(
+        state={"intent_id": "buy-001", "fills": 2, "expected_fills": 1},
+        questions={
+            "needs_review": BinaryQuestion(
+                instructions="Does this execution show a possible duplicate order?",
+                criteria=BinaryCriteria(
+                    true="More than one fill exists for one intended order.",
+                    false="At most one fill exists for the intended order.",
+                ),
+            )
+        },
+    )
+    score = assessment.answers["needs_review"].probability_yes
+    print(score, assessment.usage)
+```
+
+SubQ accepts text or JSON state and 1–128 named questions. Scores remain
+probabilities; the client does not threshold them into decisions. Keep `audit_run`
+and held-out evaluation as the authority for invariants and promotion. Store
+verification summaries only after those checks; a SubQ score is not a measured
+`hidden_pass_rate`. The current SubQ access does not generate adversarial scenarios
+or free-form explanations. Gemini can generate those when appropriate for the role.
+
+Offline model-client tests use SDK mocks and HTTPX mock transports. Tiny live tests
+exercise Gemini text, typed Gemini JSON, and SubQ scoring through these clients:
+
+```bash
+uv run python -m unittest discover -s tests -v
+direnv exec . env RUN_MODEL_API_TESTS=1 uv run python -m unittest discover -s tests -v
+```
+
 ## Built during the hackathon
 
-The current code includes our deterministic auditor and shared MongoDB client.
+The current code includes our deterministic auditor, MongoDB client, and model API clients.
 The Arena, Builder, Judge orchestration, and external-agent integration described
 in `AGENTS.md` are separate workstreams. Any external trading agent remains its
 authors' work; its license and attribution must accompany its integration.
