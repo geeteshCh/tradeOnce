@@ -22,6 +22,22 @@ Requires the private Gemini and MongoDB settings described below. Generated code
 execution currently requires macOS with `/usr/bin/sandbox-exec`; other platforms
 fail closed. The demo uses the local Arena and creates no real broker trades.
 
+The terminal tells a short story: the mistake → the repair → independent checks
+→ the saved lesson → the related task. A Rich spinner shows the current live
+step. Full code, verdicts, and lineage stay in the saved report and event log.
+Replay is explicitly labeled as a recorded live run.
+
+For a terminal recording, [asciinema](https://docs.asciinema.org/manual/cli/quick-start/)
+can record the real command if installed separately; it is optional:
+
+```bash
+direnv exec . asciinema rec -i 2 -c "uv run python -m builder.demo" runs/demo.cast
+asciinema play runs/demo.cast
+```
+
+The application reuses its existing [Rich](https://rich.readthedocs.io/en/stable/console.html)
+dependency and does not require a new presentation framework.
+
 The first task reproduces the original Executor's duplicate order in the true
 broker ledger. Harness² sees that reference execution, refines the Builder's
 four instruction files, and calls the Argon coding Builder for each candidate.

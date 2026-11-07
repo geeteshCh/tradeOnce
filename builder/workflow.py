@@ -240,6 +240,7 @@ class CodingExperiment:
             if observed.source_files != artifact.source_files:
                 raise ValueError("verification source does not match trusted artifact")
             if artifact.git_ref not in private_evidence:
+                self.observe("verifying", "Running independent checks on unseen cases.")
                 private_evidence[artifact.git_ref] = evaluate(
                     artifact.path, {"hidden": hidden}, self.sandbox
                 )
