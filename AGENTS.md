@@ -31,6 +31,8 @@ A promoted Executor **written by an LLM**. Every promotion so far uses scripted 
 
 ### Next steps by owner
 
+Handoff briefs (self-contained, give one to each owner or their coding agent): [`docs/handoff/BUILDER.md`](docs/handoff/BUILDER.md), [`docs/handoff/JUDGE.md`](docs/handoff/JUDGE.md).
+
 **Builder owner** (by 3:15)
 - [ ] Plug in a real Builder: `uv run python -m loop.run --builder aider` (models from `TRADEONCE_AIDER_MODELS=m1,m2`) or `--builder yourmodule:build` (signature in [Plug in your part](#plug-in-your-part-no-loop-changes-needed)). The Gemini and SubQ clients are in `providers/`.
 - [ ] The Builder edits only `executor/` in its worktree and keeps the stdin/stdout protocol (see Shared interfaces item 7).
