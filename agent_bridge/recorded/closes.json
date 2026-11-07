@@ -1,0 +1,38 @@
+{
+  "_note": "Real daily closes (unadjusted) from Yahoo Finance via yfinance, 2024-06-03 to 2024-06-07. Fetched once and frozen so every run is identical.",
+  "2024-06-03": {
+    "AAPL": 194.03,
+    "AMZN": 178.34,
+    "MSFT": 413.52,
+    "NVDA": 115.0,
+    "SPY": 527.8
+  },
+  "2024-06-04": {
+    "AAPL": 194.35,
+    "AMZN": 179.34,
+    "MSFT": 416.07,
+    "NVDA": 116.44,
+    "SPY": 528.39
+  },
+  "2024-06-05": {
+    "AAPL": 195.87,
+    "AMZN": 181.28,
+    "MSFT": 424.01,
+    "NVDA": 122.44,
+    "SPY": 534.67
+  },
+  "2024-06-06": {
+    "AAPL": 194.48,
+    "AMZN": 185.0,
+    "MSFT": 424.52,
+    "NVDA": 121.0,
+    "SPY": 534.66
+  },
+  "2024-06-07": {
+    "AAPL": 196.89,
+    "AMZN": 184.3,
+    "MSFT": 423.85,
+    "NVDA": 120.89,
+    "SPY": 534.01
+  }
+}

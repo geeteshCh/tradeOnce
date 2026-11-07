@@ -1,0 +1,4 @@
+{"id": "t03_accept_then_500", "seed": 3, "description": "Broker fills the order and then answers 500.",
+ "intents": [{"intent_id": "i1", "symbol": "MSFT", "side": "buy", "qty": 2}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "accept_then_500"}],
+ "prices": {"MSFT": 400.0}}

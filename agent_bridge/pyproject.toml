@@ -1,0 +1,18 @@
+[project]
+name = "tradeonce-agent-bridge"
+version = "0.1.0"
+description = "Runs the third-party ai-hedge-fund agent (aihf, MIT) through TradeOnce's Arena via its own Broker interface"
+requires-python = ">=3.11"
+# Separate environment on purpose: aihf pins rich<15, the main project uses rich>=15.
+# The Arena's own deps are listed so `arena` (imported from the repo root) works here too.
+dependencies = [
+    "aihf==2.7.0",
+    "yfinance>=0.2",   # free real prices for recorded/closes.json (fetch_prices.py)
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+]
+
+[tool.uv]
+package = false
