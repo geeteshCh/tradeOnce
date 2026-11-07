@@ -1,0 +1,296 @@
+{
+  "run_id": "bf8959d802f7",
+  "model": "gemini-4-argon",
+  "scope": "coding-builder-bf8959d802f7",
+  "first": {
+    "task": "timeout",
+    "decision": "promote",
+    "mode": "refinement",
+    "git_ref": "d0709b00c6096c1c015fc7b08504a7762146fb5d",
+    "version": "v1",
+    "patch_proposals": 3,
+    "loaded_memory_revision": 0,
+    "memory_revision": 1,
+    "public": {
+      "results": [
+        {
+          "suite": "training",
+          "scenario_id": "t02_accept_then_timeout",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 2,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t01_clean",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t04_transient_500",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 3,
+          "expected_positions": {
+            "TSLA": 1.0
+          },
+          "final_positions": {
+            "TSLA": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t09_real_reject",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {},
+          "final_positions": {}
+        }
+      ]
+    },
+    "baseline": {
+      "results": [
+        {
+          "suite": "training",
+          "scenario_id": "t02_accept_then_timeout",
+          "passed": false,
+          "failures": [
+            "auditor:OVERFILL:i1: Total filled quantity exceeds authorization",
+            "auditor:UNSAFE_RETRY:i1: Retried before resolving prior unknown submission",
+            "arena:COMPLETION:-: final positions {'AAPL': 2.0} != intended {'AAPL': 1.0}",
+            "arena:COMPLETION:-: executor claims positions {'AAPL': 1} but the broker holds {'AAPL': 2.0}",
+            "auditor:FULL_FILL:i1: filled 2.0 of required 1"
+          ],
+          "broker_calls": 2,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 2.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t01_clean",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t04_transient_500",
+          "passed": false,
+          "failures": [
+            "auditor:UNSAFE_RETRY:i1: Retried before resolving prior unknown submission"
+          ],
+          "broker_calls": 2,
+          "expected_positions": {
+            "TSLA": 1.0
+          },
+          "final_positions": {
+            "TSLA": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t09_real_reject",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {},
+          "final_positions": {}
+        }
+      ]
+    },
+    "hidden_passed": 5,
+    "hidden_total": 5,
+    "candidate_id": "9a791dbc556d4888ba41cabe44ced0dd",
+    "verification_id": "17004b3e7fe746bf9fea57c8fb9d4709",
+    "elapsed_seconds": 147.001,
+    "diff": "diff --git a/executor/LESSONS.md b/executor/LESSONS.md\nindex da2bf3c..8a83b2f 100644\n--- a/executor/LESSONS.md\n+++ b/executor/LESSONS.md\n@@ -1,3 +1,8 @@\n # Lessons\n \n-(none yet: v0 is the naive seed)\n+- **Idempotent Client Order ID**: Always send `client_order_id=str(intent[\"intent_id\"])` on `POST /v2/orders` so duplicate submissions are rejected with HTTP 422 instead of creating duplicate fills.\n+- **Pre-Retry Reconciliation**: After any ambiguous submission (`httpx.HTTPError`, HTTP 5xx, HTTP 429, or HTTP 422), never retry `POST /v2/orders` before querying `GET /v2/orders:by_client_order_id?client_order_id=<intent_id>`.\n+- **Reconciliation Decision Rule**:\n+  - If the lookup returns HTTP 200, adopt that broker order (and poll `GET /v2/orders/{id}` if its status is still non-terminal).\n+  - Only retry `POST /v2/orders` when the lookup returns HTTP 404 confirming the prior submission was not recorded.\n+  - Report deterministic client errors (such as HTTP 403) immediately as `status=\"rejected\"`, and report unresolved ambiguous state after retries as `status=\"unknown\"`.\ndiff --git a/executor/run.py b/executor/run.py\nindex bf3d07a..b2e4025 100644\n--- a/executor/run.py\n+++ b/executor/run.py\n@@ -1,12 +1,4 @@\n-\"\"\"Reference v0 Executor: deliberately naive. Retries on any timeout or error, and sends no client_order_id.\n-\n-Against `accept_then_timeout` this places a duplicate order. The Builder team can copy this as executor/run.py v0.\n-\n-Protocol (what the runner expects from every Executor):\n-  stdin : JSON list of intents [{intent_id, symbol, side, qty}]\n-  env   : BROKER_URL (also APCA_API_BASE_URL)\n-  stdout: last line is a JSON list of results [{intent_id, status, broker_order_id, filled_qty}]\n-\"\"\"\n+\"\"\"TradeOnce Executor: idempotent submission and pre-retry reconciliation.\"\"\"\n \n import json\n import os\n@@ -16,22 +8,99 @@ import httpx\n \n BROKER = os.environ[\"BROKER_URL\"]\n TIMEOUT_S = float(os.environ.get(\"EXECUTOR_TIMEOUT_S\", \"0.5\"))\n+NON_TERMINAL_STATUSES = {\"new\", \"accepted\", \"pending_new\"}\n+\n+\n+def _resolve_order(client: httpx.Client, intent_id: str, order: dict) -> dict:\n+    order_id = order[\"id\"]\n+    for _ in range(3):\n+        if order.get(\"status\") not in NON_TERMINAL_STATUSES:\n+            break\n+        try:\n+            r = client.get(f\"/v2/orders/{order_id}\")\n+        except httpx.HTTPError:\n+            break\n+        if r.status_code == 200:\n+            order = r.json()\n+        elif r.status_code >= 500 or r.status_code == 429:\n+            continue\n+        else:\n+            break\n+    return {\n+        \"intent_id\": intent_id,\n+        \"status\": order[\"status\"],\n+        \"broker_order_id\": order_id,\n+        \"filled_qty\": int(float(order.get(\"filled_qty\") or 0)),\n+    }\n \n \n def execute(client: httpx.Client, intent: dict) -> dict:\n-    body = {\"symbol\": intent[\"symbol\"], \"qty\": intent[\"qty\"], \"side\": intent[\"side\"], \"type\": \"market\", \"time_in_force\": \"day\"}\n-    for _attempt in range(3):\n+    intent_id = intent[\"intent_id\"]\n+    client_order_id = str(intent_id)\n+    body = {\n+        \"symbol\": intent[\"symbol\"],\n+        \"qty\": intent[\"qty\"],\n+        \"side\": intent[\"side\"],\n+        \"type\": \"market\",\n+        \"time_in_force\": \"day\",\n+        \"client_order_id\": client_order_id,\n+    }\n+    needs_reconcile = False\n+\n+    for _attempt in range(5):\n+        if needs_reconcile:\n+            try:\n+                r = client.get(\n+                    \"/v2/orders:by_client_order_id\",\n+                    params={\"client_order_id\": client_order_id},\n+                )\n+            except httpx.HTTPError:\n+                continue\n+\n+            if r.status_code == 200:\n+                return _resolve_order(client, intent_id, r.json())\n+            if r.status_code == 404:\n+                needs_reconcile = False\n+            else:\n+                continue\n+\n         try:\n             r = client.post(\"/v2/orders\", json=body)\n-        except httpx.TimeoutException:\n-            continue  # BUG (on purpose): the order may already exist\n-        if r.status_code == 200:\n-            o = r.json()\n-            return {\"intent_id\": intent[\"intent_id\"], \"status\": o[\"status\"], \"broker_order_id\": o[\"id\"], \"filled_qty\": int(float(o[\"filled_qty\"]))}\n-        if r.status_code >= 500 or r.status_code == 429:\n+        except httpx.HTTPError:\n+            needs_reconcile = True\n+            continue\n+\n+        if r.status_code in (200, 201):\n+            return _resolve_order(client, intent_id, r.json())\n+        if r.status_code in (422, 429) or r.status_code >= 500:\n+            needs_reconcile = True\n             continue\n-        return {\"intent_id\": intent[\"intent_id\"], \"status\": \"rejected\", \"broker_order_id\": None, \"filled_qty\": 0}\n-    return {\"intent_id\": intent[\"intent_id\"], \"status\": \"failed\", \"broker_order_id\": None, \"filled_qty\": 0}\n+        return {\n+            \"intent_id\": intent_id,\n+            \"status\": \"rejected\",\n+            \"broker_order_id\": None,\n+            \"filled_qty\": 0,\n+        }\n+\n+    if needs_reconcile:\n+        try:\n+            r = client.get(\n+                \"/v2/orders:by_client_order_id\",\n+                params={\"client_order_id\": client_order_id},\n+            )\n+            if r.status_code == 200:\n+                return _resolve_order(client, intent_id, r.json())\n+            if r.status_code == 404:\n+                needs_reconcile = False\n+        except httpx.HTTPError:\n+            pass\n+\n+    return {\n+        \"intent_id\": intent_id,\n+        \"status\": \"unknown\" if needs_reconcile else \"failed\",\n+        \"broker_order_id\": None,\n+        \"filled_qty\": 0,\n+    }\n \n \n def main() -> None:",
+    "lesson": "# Lessons\n\n- **Idempotent Client Order ID**: Always send `client_order_id=str(intent[\"intent_id\"])` on `POST /v2/orders` so duplicate submissions are rejected with HTTP 422 instead of creating duplicate fills.\n- **Pre-Retry Reconciliation**: After any ambiguous submission (`httpx.HTTPError`, HTTP 5xx, HTTP 429, or HTTP 422), never retry `POST /v2/orders` before querying `GET /v2/orders:by_client_order_id?client_order_id=<intent_id>`.\n- **Reconciliation Decision Rule**:\n  - If the lookup returns HTTP 200, adopt that broker order (and poll `GET /v2/orders/{id}` if its status is still non-terminal).\n  - Only retry `POST /v2/orders` when the lookup returns HTTP 404 confirming the prior submission was not recorded.\n  - Report deterministic client errors (such as HTTP 403) immediately as `status=\"rejected\"`, and report unresolved ambiguous state after retries as `status=\"unknown\"`.\n"
+  },
+  "transfer": {
+    "task": "server_error",
+    "decision": "promote",
+    "mode": "memory_reuse",
+    "git_ref": "b6b752d62ce5c0c3fce27bece11a6f0a34554ac7",
+    "version": "v2",
+    "patch_proposals": 1,
+    "loaded_memory_revision": 1,
+    "memory_revision": 2,
+    "public": {
+      "results": [
+        {
+          "suite": "training",
+          "scenario_id": "t03_accept_then_500",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 2,
+          "expected_positions": {
+            "MSFT": 2.0
+          },
+          "final_positions": {
+            "MSFT": 2.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t01_clean",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t04_transient_500",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 3,
+          "expected_positions": {
+            "TSLA": 1.0
+          },
+          "final_positions": {
+            "TSLA": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t09_real_reject",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {},
+          "final_positions": {}
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t02_accept_then_timeout",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 2,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        }
+      ]
+    },
+    "baseline": {
+      "results": [
+        {
+          "suite": "training",
+          "scenario_id": "t03_accept_then_500",
+          "passed": false,
+          "failures": [
+            "auditor:OVERFILL:i1: Total filled quantity exceeds authorization",
+            "auditor:UNSAFE_RETRY:i1: Retried before resolving prior unknown submission",
+            "arena:COMPLETION:-: final positions {'MSFT': 4.0} != intended {'MSFT': 2.0}",
+            "arena:COMPLETION:-: executor claims positions {'MSFT': 2} but the broker holds {'MSFT': 4.0}",
+            "auditor:FULL_FILL:i1: filled 4.0 of required 2"
+          ],
+          "broker_calls": 2,
+          "expected_positions": {
+            "MSFT": 2.0
+          },
+          "final_positions": {
+            "MSFT": 4.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t01_clean",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t04_transient_500",
+          "passed": false,
+          "failures": [
+            "auditor:UNSAFE_RETRY:i1: Retried before resolving prior unknown submission"
+          ],
+          "broker_calls": 2,
+          "expected_positions": {
+            "TSLA": 1.0
+          },
+          "final_positions": {
+            "TSLA": 1.0
+          }
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t09_real_reject",
+          "passed": true,
+          "failures": [],
+          "broker_calls": 1,
+          "expected_positions": {},
+          "final_positions": {}
+        },
+        {
+          "suite": "regression",
+          "scenario_id": "t02_accept_then_timeout",
+          "passed": false,
+          "failures": [
+            "auditor:OVERFILL:i1: Total filled quantity exceeds authorization",
+            "auditor:UNSAFE_RETRY:i1: Retried before resolving prior unknown submission",
+            "arena:COMPLETION:-: final positions {'AAPL': 2.0} != intended {'AAPL': 1.0}",
+            "arena:COMPLETION:-: executor claims positions {'AAPL': 1} but the broker holds {'AAPL': 2.0}",
+            "auditor:FULL_FILL:i1: filled 2.0 of required 1"
+          ],
+          "broker_calls": 2,
+          "expected_positions": {
+            "AAPL": 1.0
+          },
+          "final_positions": {
+            "AAPL": 2.0
+          }
+        }
+      ]
+    },
+    "hidden_passed": 5,
+    "hidden_total": 5,
+    "candidate_id": "3320472b54654b28ab4e682fca885368",
+    "verification_id": "f671f7df08af4b10b18174f0597fb0c4",
+    "elapsed_seconds": 35.504,
+    "diff": "diff --git a/executor/LESSONS.md b/executor/LESSONS.md\nindex da2bf3c..8a83b2f 100644\n--- a/executor/LESSONS.md\n+++ b/executor/LESSONS.md\n@@ -1,3 +1,8 @@\n # Lessons\n \n-(none yet: v0 is the naive seed)\n+- **Idempotent Client Order ID**: Always send `client_order_id=str(intent[\"intent_id\"])` on `POST /v2/orders` so duplicate submissions are rejected with HTTP 422 instead of creating duplicate fills.\n+- **Pre-Retry Reconciliation**: After any ambiguous submission (`httpx.HTTPError`, HTTP 5xx, HTTP 429, or HTTP 422), never retry `POST /v2/orders` before querying `GET /v2/orders:by_client_order_id?client_order_id=<intent_id>`.\n+- **Reconciliation Decision Rule**:\n+  - If the lookup returns HTTP 200, adopt that broker order (and poll `GET /v2/orders/{id}` if its status is still non-terminal).\n+  - Only retry `POST /v2/orders` when the lookup returns HTTP 404 confirming the prior submission was not recorded.\n+  - Report deterministic client errors (such as HTTP 403) immediately as `status=\"rejected\"`, and report unresolved ambiguous state after retries as `status=\"unknown\"`.\ndiff --git a/executor/run.py b/executor/run.py\nindex bf3d07a..9bb16c1 100644\n--- a/executor/run.py\n+++ b/executor/run.py\n@@ -1,8 +1,6 @@\n-\"\"\"Reference v0 Executor: deliberately naive. Retries on any timeout or error, and sends no client_order_id.\n+\"\"\"Idempotent, reconciliation-first Executor.\n \n-Against `accept_then_timeout` this places a duplicate order. The Builder team can copy this as executor/run.py v0.\n-\n-Protocol (what the runner expects from every Executor):\n+Protocol:\n   stdin : JSON list of intents [{intent_id, symbol, side, qty}]\n   env   : BROKER_URL (also APCA_API_BASE_URL)\n   stdout: last line is a JSON list of results [{intent_id, status, broker_order_id, filled_qty}]\n@@ -16,22 +14,82 @@ import httpx\n \n BROKER = os.environ[\"BROKER_URL\"]\n TIMEOUT_S = float(os.environ.get(\"EXECUTOR_TIMEOUT_S\", \"0.5\"))\n+NON_TERMINAL_STATUSES = {\"new\", \"accepted\", \"pending_new\", \"accepted_for_bidding\", \"calculated\"}\n+\n+\n+def _resolve_order(client: httpx.Client, intent_id: str, order: dict) -> dict:\n+    order_id = order[\"id\"]\n+    for _ in range(4):\n+        if order.get(\"status\") not in NON_TERMINAL_STATUSES:\n+            break\n+        try:\n+            r = client.get(f\"/v2/orders/{order_id}\")\n+        except httpx.HTTPError:\n+            continue\n+        if r.status_code == 200:\n+            order = r.json()\n+    return {\n+        \"intent_id\": intent_id,\n+        \"status\": order[\"status\"],\n+        \"broker_order_id\": order_id,\n+        \"filled_qty\": int(float(order.get(\"filled_qty\") or 0)),\n+    }\n \n \n def execute(client: httpx.Client, intent: dict) -> dict:\n-    body = {\"symbol\": intent[\"symbol\"], \"qty\": intent[\"qty\"], \"side\": intent[\"side\"], \"type\": \"market\", \"time_in_force\": \"day\"}\n-    for _attempt in range(3):\n+    intent_id = intent[\"intent_id\"]\n+    client_order_id = str(intent_id)\n+    body = {\n+        \"symbol\": intent[\"symbol\"],\n+        \"qty\": intent[\"qty\"],\n+        \"side\": intent[\"side\"],\n+        \"type\": \"market\",\n+        \"time_in_force\": \"day\",\n+        \"client_order_id\": client_order_id,\n+    }\n+\n+    needs_reconcile = False\n+    for _attempt in range(6):\n+        if needs_reconcile:\n+            try:\n+                r = client.get(\n+                    \"/v2/orders:by_client_order_id\",\n+                    params={\"client_order_id\": client_order_id},\n+                )\n+            except httpx.HTTPError:\n+                continue\n+\n+            if r.status_code == 200:\n+                return _resolve_order(client, intent_id, r.json())\n+            if r.status_code == 404:\n+                needs_reconcile = False\n+            else:\n+                continue\n+\n         try:\n             r = client.post(\"/v2/orders\", json=body)\n-        except httpx.TimeoutException:\n-            continue  # BUG (on purpose): the order may already exist\n-        if r.status_code == 200:\n-            o = r.json()\n-            return {\"intent_id\": intent[\"intent_id\"], \"status\": o[\"status\"], \"broker_order_id\": o[\"id\"], \"filled_qty\": int(float(o[\"filled_qty\"]))}\n-        if r.status_code >= 500 or r.status_code == 429:\n+        except httpx.HTTPError:\n+            needs_reconcile = True\n             continue\n-        return {\"intent_id\": intent[\"intent_id\"], \"status\": \"rejected\", \"broker_order_id\": None, \"filled_qty\": 0}\n-    return {\"intent_id\": intent[\"intent_id\"], \"status\": \"failed\", \"broker_order_id\": None, \"filled_qty\": 0}\n+\n+        if r.status_code in (200, 201):\n+            return _resolve_order(client, intent_id, r.json())\n+        if r.status_code in (422, 429) or r.status_code >= 500:\n+            needs_reconcile = True\n+            continue\n+        return {\n+            \"intent_id\": intent_id,\n+            \"status\": \"rejected\",\n+            \"broker_order_id\": None,\n+            \"filled_qty\": 0,\n+        }\n+\n+    return {\n+        \"intent_id\": intent_id,\n+        \"status\": \"unknown\" if needs_reconcile else \"failed\",\n+        \"broker_order_id\": None,\n+        \"filled_qty\": 0,\n+    }\n \n \n def main() -> None:",
+    "lesson": "# Lessons\n\n- **Idempotent Client Order ID**: Always send `client_order_id=str(intent[\"intent_id\"])` on `POST /v2/orders` so duplicate submissions are rejected with HTTP 422 instead of creating duplicate fills.\n- **Pre-Retry Reconciliation**: After any ambiguous submission (`httpx.HTTPError`, HTTP 5xx, HTTP 429, or HTTP 422), never retry `POST /v2/orders` before querying `GET /v2/orders:by_client_order_id?client_order_id=<intent_id>`.\n- **Reconciliation Decision Rule**:\n  - If the lookup returns HTTP 200, adopt that broker order (and poll `GET /v2/orders/{id}` if its status is still non-terminal).\n  - Only retry `POST /v2/orders` when the lookup returns HTTP 404 confirming the prior submission was not recorded.\n  - Report deterministic client errors (such as HTTP 403) immediately as `status=\"rejected\"`, and report unresolved ambiguous state after retries as `status=\"unknown\"`.\n"
+  },
+  "measurement_note": "Patch proposals count actual Executor generation calls, including failed attempts. The tasks differ; this is observed transfer, not a controlled causal estimate of model improvement."
+}

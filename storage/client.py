@@ -127,6 +127,8 @@ class MongoStore:
             raise ValueError("memory git ref does not match candidate")
         if candidate.harness_files != memory.harness_files:
             raise ValueError("memory harness files do not match candidate")
+        if candidate.source_files != memory.source_files:
+            raise ValueError("memory source files do not match candidate")
 
         verification = self.get_verification(memory.verification_id)
         if verification is None:

@@ -4,6 +4,77 @@ TradeOnce wraps a trading agent and verifies code improvements against an
 independent Judge. See [AGENTS.md](AGENTS.md) for the architecture and ownership
 boundaries.
 
+## Real coding demo: one timeout, two orders, one lesson
+
+Run a real Gemini 4 Argon Builder through one sequential Harness² refinement
+step, then transfer the approved Builder to a related accepted-then-500 failure:
+
+```bash
+uv sync --locked
+direnv exec . uv run python -m builder.demo
+# Use the printed report path for a reliable presentation of the actual live run:
+uv run python -m builder.demo --replay runs/coding-demo/<run-id>/report.json
+# Replay our checked-in actual Argon run, without keys or database access:
+uv run python -m builder.demo --replay demo/recorded/argon-coding.json
+```
+
+Requires the private Gemini and MongoDB settings described below. Generated code
+execution currently requires macOS with `/usr/bin/sandbox-exec`; other platforms
+fail closed. The demo uses the local Arena and creates no real broker trades.
+
+The first task reproduces the original Executor's duplicate order in the true
+broker ledger. Harness² sees that reference execution, refines the Builder's
+four instruction files, and calls the Argon coding Builder for each candidate.
+Argon returns complete Python and `executor/LESSONS.md` contents through a
+Pydantic model. A public failure can trigger one repair attempt, with at most
+two generation calls per candidate. This path uses the official Google SDK;
+the existing Aider Builder remains separately available.
+
+Every candidate is a real commit in the run's isolated Git repository. The
+candidate must pass training and regression scenarios, then the fixed auditor
+and a runtime-private held-out suite. Held-out cases include ambiguous success,
+transient failures where retrying is necessary, rate limits, and genuine
+rejections. Merely disabling retries or increasing timeouts is insufficient.
+Only independently approved code, lessons, Builder harness, and complete
+Harness² library can advance MongoDB memory, using revision compare-and-swap.
+
+The later task starts again from the original buggy Python source. A fresh
+MongoDB connection reloads the approved Builder instructions and lessons, and
+tries one repair before paying for another Harness² refinement. If the new
+candidate fails any required check, it is rejected and refinement resumes.
+The terminal reports actual Executor generation calls, including failed attempts.
+First-task versus later-task counts are an observed transfer demonstration,
+not a controlled causal estimate; no attempt reduction is hard-coded.
+
+Verified live run `bf8959d802f7`: the timeout repair needed **3 patch proposals**
+and 147 seconds; the later accepted-then-500 repair needed **1 proposal** and
+36 seconds. Both passed **5/5 hidden cases**, the original timeout remained a
+regression on the later task, Git advanced to `v1` then `v2`, and MongoDB memory
+advanced from revision 0 to 1 to 2. The checked-in report is recorded live evidence,
+not a script used by the code-generation loop.
+
+The final report shows the actual Git diff, broker positions, public and private
+pass counts, promotion tags, memory revisions, and proposal counts. Replay
+re-presents that recorded live evidence without model calls. The original
+runtime-private cases are retained locally under the ignored run's `private/`
+directory with restricted permissions; verdicts record their SHA-256 digest.
+They are never supplied to either Gemini proposer or code generator.
+
+Source and responsibilities:
+
+| Module | Responsibility |
+| --- | --- |
+| `builder/codegen.py` | Typed Argon patch generation from explicitly supplied public inputs |
+| `builder/workflow.py` | Real Harness² run, Git versions, hidden gate, memory adoption, and transfer |
+| `builder/evidence.py` | Trusted Arena ledger/auditor evidence and private variants |
+| `builder/sandbox.py` | Disposable executor copies, clean environment, filesystem/network restrictions |
+| `builder/demo.py` | Live command and replayable presentation |
+
+The macOS sandbox admits only the copied Executor, Python runtime/dependencies,
+and its exact local Arena port. It does not inherit API/database secrets, grant
+access to the repository or hidden fixtures, or permit arbitrary network access.
+No generated code runs directly in a developer checkout.
+
 ## MongoDB client
 
 The shared `storage` package records Builder candidates and Judge verdicts in
@@ -195,10 +266,10 @@ direnv exec . env RUN_MODEL_API_TESTS=1 uv run python -m unittest discover -s te
 ## Built during the hackathon
 
 The current code includes our deterministic auditor, MongoDB client, model API clients,
-and the Harness² integration below. The Arena, coding Builder, Judge orchestration,
-and external-agent bridge described in `AGENTS.md` are implemented in their own
-packages. Connecting Harness²'s refinement callbacks to that coding loop remains
-a separate application integration. Any external trading agent remains its
+and both the real coding demo above and the lightweight Harness² policy fixture
+below. The coding demo reuses the Arena, fixed auditor, and isolated Git versioning.
+The Aider tournament and external-agent bridge remain separate entry points.
+Any external trading agent remains its
 authors' work; its license and attribution must accompany its integration.
 
 ## Harness² refinement and persistent memory
@@ -228,7 +299,8 @@ all model calls use the Google GenAI SDK.
 
 ### Try the complete loop
 
-With MongoDB and Gemini configured as above:
+For the small declarative policy fixture, with MongoDB and Gemini configured above:
+use `python -m builder.demo` above for actual Python code generation.
 
 ```bash
 direnv exec . uv run python -m harnessing --scope demo-executor

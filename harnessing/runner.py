@@ -132,6 +132,7 @@ class HarnessRunner:
         initial_harness: HarnessFiles,
         probe: Probe,
         verifier: Verifier,
+        reference_probe: Probe | None = None,
     ) -> HarnessRunResult:
         """Refine one task and persist memory only for a verified improvement."""
         previous = self.store.get_harness_memory(self.settings.scope)
@@ -146,6 +147,7 @@ class HarnessRunner:
             probe,
             verifier,
             channels={"proposer": self.proposer.spec, "selector": self.proposer.spec},
+            reference_probe=reference_probe,
         )
         library = Library(root / "library", task.domain, adapter.substrate.surface())
         if previous is not None:
@@ -194,13 +196,15 @@ class HarnessRunner:
         advisory = self._advisory(observed)
         if advisory is not None:
             reasons.append(f"SubQ advisory probability of review: {advisory:.4f}")
+        selected_git_ref = observed.git_ref or self.settings.git_ref
         candidate = BuilderCandidate(
             run_id=run_id,
             round=self.settings.k,
             candidate=selected.chosen_label,
-            git_ref=self.settings.git_ref,
+            git_ref=selected_git_ref,
             summary=f"Harness² {self.settings.mode} refinement for {task.id}",
             harness_files=files,
+            source_files=observed.source_files,
         )
         self.store.save_candidate(candidate)
         verdict = VerificationResult(
@@ -218,8 +222,9 @@ class HarnessRunner:
                 revision=revision + 1,
                 candidate_id=candidate.id,
                 verification_id=verdict.id,
-                git_ref=self.settings.git_ref,
+                git_ref=selected_git_ref,
                 harness_files=files,
+                source_files=observed.source_files,
                 library_files=_snapshot_library(library),
             )
             self.store.save_harness_memory(memory, expected_revision=revision)

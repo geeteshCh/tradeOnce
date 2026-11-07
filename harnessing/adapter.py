@@ -73,12 +73,14 @@ class TradeOnceAdapter:
         verifier: Verifier,
         *,
         channels: dict[str, ChannelSpec],
+        reference_probe: Probe | None = None,
     ) -> None:
         self._task = task
         self._workspace = Path(workspace).resolve()
         self._workspace.mkdir(parents=True, exist_ok=True)
         self._base = dict(base_harness)
         self._probe = probe
+        self._reference_probe = reference_probe
         self._verifier = verifier
         self.validate_tree(self._base)
         self.substrate = _TradeOnceSubstrate()
@@ -150,7 +152,8 @@ class TradeOnceAdapter:
             return run_dir
 
         harness = self._read_harness(harness_dir)
-        result = self._probe(self._task, harness)
+        probe = self._reference_probe if harness_dir is None else None
+        result = (probe or self._probe)(self._task, harness)
         if not isinstance(result, ProbeResult):
             raise TypeError("probe must return ProbeResult")
         run_dir.mkdir(parents=True, exist_ok=True)

@@ -40,6 +40,7 @@ class BuilderCandidate(_Record):
     git_ref: str = Field(min_length=1)
     summary: str = ""
     harness_files: dict[str, str] = Field(default_factory=dict)
+    source_files: dict[str, str] = Field(default_factory=dict)
 
 
 class VerificationResult(_Record):
@@ -61,4 +62,5 @@ class HarnessMemory(_Record):
     verification_id: str = Field(min_length=1)
     git_ref: str = Field(min_length=1)
     harness_files: dict[str, str]
+    source_files: dict[str, str] = Field(default_factory=dict)
     library_files: dict[str, str] = Field(default_factory=dict)

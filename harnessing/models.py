@@ -28,6 +28,8 @@ class ProbeResult(BaseModel):
     output: str
     trace: str
     data: dict[str, JsonValue] = Field(default_factory=dict)
+    git_ref: str | None = None
+    source_files: dict[str, str] = Field(default_factory=dict)
 
 
 class VerificationOutcome(BaseModel):
