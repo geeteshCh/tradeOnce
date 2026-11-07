@@ -10,40 +10,41 @@ TradeOnce does **not** predict prices or pick stocks. It is a **wrapper around a
 
 ## What TradeOnce wraps
 
-We do **not** build the trading agent. We fork an existing open-source one (default: **virattt/ai-hedge-fund**; check its license and code layout first) and wrap it:
+We do **not** build the trading agent. We use **virattt/ai-hedge-fund** (PyPI `aihf==2.7.0`, MIT), **installed unmodified**, and plug TradeOnce in through **its own `Broker` interface**. This is built: see [Agent bridge reference](#agent-bridge-reference).
+
+**Decision (after reading its code):** its decision code (blending, risk limits, target validation, sizing from current holdings) is already careful, so we do **not** edit it. Its weak spot is execution. Its broker contract says *"place_order either fills the order COMPLETELY and returns a Fill, or raises"*, and it has no live broker ("a live broker implements the same three methods later"). Real brokers break that contract. TradeOnce supplies the missing live broker and keeps improving it.
 
 ```
-            ┌─────────── Builder (Aider + LLM) edits both purple parts ───────────┐
-            ▼                                                                     ▼
- External agent (our fork)                                                        
-   LLM analysts ──signals──▶ [risk + portfolio code] ──intents──▶ [Executor] ──orders──▶ Arena
-   (frozen, cached)           purple: improved                     purple: improved      (true record)
-                                     │                                                    │
-                                     └──────── decisions ──────▶ Judge ◀──── ledger ──────┘
-                                                                   │
-                                                  verdict ──▶ Loop ──▶ promote / roll back (git tag)
+ ai-hedge-fund (unmodified)                         TradeOnce
+   cached analysts ─▶ blend ─▶ risk limits ─▶ sizing ─▶ ArenaBroker ─▶ Executor ─orders─▶ Arena / Alpaca paper
+   (frozen signals)     its own pipeline code              (its Broker        (purple: the code       (true record)
+                                                            interface)         the Builder improves)        │
+                                        Judge ◀──────────────── ledger ────────────────────────────────────┘
+                                          │
+                              verdict ──▶ Loop ──▶ promote / roll back (git tag)
 ```
 
 **What improves** (versioned; promoted or rolled back):
-1. **The external agent's risk and portfolio code** (in our fork): the code that turns "bullish AAPL" into "buy 3 AAPL".
-   - Fixes it should learn: size from current holdings (don't buy 10 more when already at target), never exceed cash, respect position limits, hold when a price is missing or stale, only trade allowed tickers.
-2. **The Executor**: the code that turns "buy 3 AAPL" into broker calls.
+1. **The Executor**: the code that turns the agent's "buy 128 AAPL" into broker calls, behind the agent's `Broker` interface.
    - Fixes it should learn: `client_order_id` plus lookup before retry (no duplicates), don't trust stale status, finish partial fills, cancel or wait before replacing a late order.
-3. **The Builder's own lessons and tools** (`LESSONS.md`, `executor/tools/`): it fixes the next failure faster. This is the "improves itself" part of the track.
+   - **Measured on the real agent** (`agent_bridge/run_baseline.py`, same 9 faults as Arena training): naive v0 = **4/9 safe**. A timeout after accept makes it buy AAPL twice: **50% of the fund against the agent's own 25% limit, cash -$10,396, and the agent doesn't notice** (its books just mirror the broker). A correct Executor reaches 9/9 (checked with a throwaway reference, not committed).
+2. **The Builder's own lessons and tools** (`LESSONS.md`, `executor/tools/`): it fixes the next failure faster. This is the "improves itself" part of the track.
 
-**What never changes during a run:** the agent's LLM analysts (their signals are run once and cached), the Arena, the Judge's checks, the hidden set. If the system could change its own tests, it could grade itself a pass.
+**What never changes during a run:** the agent's code and its analysts (signals are frozen in `agent_bridge/recorded/`), the Arena, the Judge's checks, the hidden set. If the system could change its own tests, it could grade itself a pass.
 
 **Who wrote what** (say this in the README and the pitch; the rules disqualify unclear contributions):
 
 | Piece | Written by | Changed by |
 |---|---|---|
-| Trading agent, LLM analysts | Its authors (third-party) | Nobody: frozen, cached signals |
-| Trading agent, risk + portfolio code | Its authors (third-party) | **Our Builder**, in our fork; every change in the fork's git history was made by TradeOnce and verified by our Judge |
-| Arena, Executor, Builder, Judge, loop, adapter | **Us, during the hackathon** | The Executor by our Builder; the rest is fixed |
+| ai-hedge-fund (`aihf` 2.7.0): pipeline, risk limits, sizing | Its authors (third-party, MIT) | Nobody: installed unmodified |
+| Cached analyst signals (`agent_bridge/recorded/signals.json`) | Us (made-up stand-ins for its LLM analysts) | Nobody during a run |
+| Recorded closes (`agent_bridge/recorded/closes.json`) | Real Yahoo Finance data, fetched by our script | Nobody during a run |
+| `ArenaBroker`, bridge, baseline harness (`agent_bridge/`) | **Us, during the hackathon** | Fixed |
+| Arena, Executor, Builder, Judge, loop | **Us, during the hackathon** | The Executor by our Builder; the rest is fixed |
 
-**Why the analysts are frozen:** re-running them means many LLM calls per ticker per day for every candidate. That takes minutes, costs money and gives different answers each time. Cached signals make each evaluation take seconds and give the same result every run. Letting the Builder edit analyst prompts is a stretch goal only.
+**Why the analysts are frozen:** its LLM analysts need an LLM key plus a paid Financial Datasets key, take minutes per run and give different answers each time. Cached signals make each run take seconds and give the same result every time.
 
-**Priority:** the **Executor loop is the core demo** (half built). The agent-improvement loop is **round 2**, using decision invariants on cached signals (about 1.5 hours for one person). A held-out backtest score is only added if everything else works by 3:30.
+**Priority:** the **Executor loop is the core demo**. The agent bridge is how we show it on a real third-party agent: run `run_baseline.py` before (v0) and after (promoted Executor) and show the two tables side by side. Editing the agent's own code is **dropped** unless the Builder finds a real decision bug.
 
 ---
 
@@ -59,9 +60,8 @@ We do **not** build the trading agent. We fork an existing open-source one (defa
 - **Output:** a place where trades can go wrong in ways you can reproduce.
 
 ### 2. The Builder (gets better)
-*Executor + evolution engine. Improves two targets, in separate rounds: the Executor (core) and the external agent's risk + portfolio code (round 2).*
-- **Target 2, the external agent's decision code** (`agent/`, our fork): the Builder may edit only the fork's risk-manager and portfolio-manager files (exact paths: fill in after checking the repo; if the portfolio manager is an LLM call, the Builder edits its prompt and rules instead). It is driven by cached signals in `agent/signals/` and judged on decision invariants (see the Judge).
-- **Executor** (target 1, the code the agent rewrites): `execute(intent) -> result`, where an intent is `{intent_id, symbol, side, qty}`.
+*Executor + evolution engine. The Executor is the one target; ai-hedge-fund uses it through `ArenaBroker` (see [Agent bridge reference](#agent-bridge-reference)).*
+- **Executor** (the code the agent rewrites): `execute(intent) -> result`, where an intent is `{intent_id, symbol, side, qty}`.
   - `tools/` holds agent-created tools (e.g. `reconcile_order.py`), loaded through a registry.
   - v0 is deliberately naive: it retries on timeout, which causes duplicate orders.
   - The same code runs against the simulator and against the Alpaca paper account; only the base URL changes.
@@ -84,16 +84,9 @@ We do **not** build the trading agent. We fork an existing open-source one (defa
     2. *Regression suite*: every scenario passed in earlier rounds; it must still pass.
     3. *Hidden held-out set*: only the Auditor can read it. Variants with different timing, symbols and order sizes, plus counter-cases (e.g. "the order really was rejected, so retrying is correct") that catch overfit fixes.
   - **Tournament rule:** a candidate must pass every invariant to be eligible. The winner has the most hidden-set passes, with fewer broker API calls as the tiebreaker. If neither qualifies, the current version stays.
-  - **Decision invariants** (round 2, checked on the intents the agent's decision code produces from cached signals; deterministic, no LLM):
-    - Never exceed available cash
-    - Never exceed the per-ticker position limit or the daily risk cap
-    - Only trade tickers in the allowed universe (catches hallucinated tickers)
-    - Size from current holdings: already at target means 0 shares, not another full buy
-    - Hold when a price is missing or stale, or the ticker is halted
-    - Each intent has a stable `intent_id` (run ID + date + ticker), so the same decision can't become two trades
-  - **Decision hidden set:** held-out **dates and tickers** the Builder never saw, plus market-condition variants. Optional secondary score: risk-adjusted return on held-out date windows; it may not get worse.
+  - **On the real agent:** the bridge's outcome classes (`SILENT_DESYNC`, `DUPLICATE`, `LIMIT_BREACH`, `NEGATIVE_CASH`, `HALTED_DESYNC`, `HALTED_CLEAN`, `SAFE`) are the same checks, seen from the agent's side. Optional: run hidden scenarios through `run_baseline.py`-style cycles too, so promotion also requires the agent to stay safe.
+  - Decision invariants on the agent's own sizing were **dropped**: its pipeline already enforces limits, cash and sizing from current holdings.
 - **Adversary**: a red-team LLM that writes new fault scripts, checked against the format before use. Its score is how many invariant violations it causes against the current promoted version. Its scenarios go into training, then into regression once the Builder beats them.
-  - Round 2: it also writes **market conditions** for the decision code: a crash day, a price gap, a missing or stale price, a halted ticker, an oversized signal.
 - **Output:** new attacks, and a promote/reject verdict with reasons for every candidate.
 
 ### 4. The Loop & Stage (runs it and shows it)
@@ -102,7 +95,7 @@ We do **not** build the trading agent. We fork an existing open-source one (defa
 - Writes everything to `events.jsonl`, with a replay mode for the demo (live LLM output varies).
 - A Rich live terminal view of rounds, attacks, failures, patches, verdicts and the version timeline. No Streamlit; the dashboard is not the main feature.
 - The final Alpaca paper trade through the promoted Executor.
-- **The external agent:** fork it into `agent/`, run its LLM analysts **once** and save the signals to `agent/signals/` (per ticker per day), and write the **adapter** that turns the agent's decisions into our intents (skip holds; `intent_id` = run ID + date + ticker).
+- **The external agent:** done in `agent_bridge/` (see [Agent bridge reference](#agent-bridge-reference)). For the demo, show `run_baseline.py` before (v0) and after (promoted Executor).
 - README ("built during the hackathon" section, plus the who-wrote-what table), 1-minute video, pitch.
 
 ---
@@ -110,7 +103,7 @@ We do **not** build the trading agent. We fork an existing open-source one (defa
 ## How they connect
 
 ```
-Judge (Adversary) ──fault scripts / market conditions──▶ Arena ◀──orders── Executor ◀──intents── agent decision code
+Judge (Adversary) ──fault scripts──▶ Arena ◀──orders── Executor ◀──orders── ai-hedge-fund (via ArenaBroker)
                                        │                                      ▲                    ▲
                                  true records                          Builder edits         Builder edits
                                        ▼                                      │                    │
@@ -146,16 +139,7 @@ The Pydantic models live in **`arena/models.py`**; every part imports them (`fro
    - **env:** `BROKER_URL` (also `APCA_API_BASE_URL`, plus dummy `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`).
    - **stdout:** the **last line** is a JSON list of results. Log anything else to stderr.
    - Default command: `python -m executor.run`, run with the candidate's directory as cwd and on `PYTHONPATH`.
-8. **Decision scenario** (round 2; proposed, not built yet; the Judge owner finalizes it in `arena/models.py`):
-   ```json
-   {"id": "d-2026-03-04", "date": "2026-03-04",
-    "signals":  {"AAPL": {"signal": "bullish", "confidence": 0.7}, "MSFT": {"signal": "bearish", "confidence": 0.6}},
-    "prices":   {"AAPL": 200.0, "MSFT": null},
-    "holdings": {"AAPL": 10}, "cash": 5000,
-    "limits":   {"max_position_pct": 0.2, "universe": ["AAPL", "MSFT", "NVDA"]},
-    "conditions": ["MSFT price missing"]}
-   ```
-   The agent's decision code reads this and prints intents (same format as item 2). The Judge checks them against the decision invariants. Signals come from `agent/signals/`; prices, holdings and conditions are set by the scenario, so the Adversary can attack them.
+8. **Agent → Executor mapping** (`agent_bridge/arena_broker.py`): each `hedge_fund` `Order` becomes one intent, `intent_id = "<run_id>-<session>-<ticker>-<side>"` (stable, so one decision can't become two intents). `Fill` is returned only when the result is `filled` with the full quantity; anything else raises, keeping the agent's contract.
 
 ---
 
@@ -177,7 +161,7 @@ The agents **do not chat with each other.** They take turns through the environm
 
 ## Arena reference
 
-Code: `arena/` (broker, fault engine, true record, runner). Tests: `tests/test_arena.py` (15 passing). Reference v0 Executor: `examples/naive_executor.py`.
+Code: `arena/` (broker, fault engine, true record, runner). Tests: `tests/test_arena.py`. Reference v0 Executor: `examples/naive_executor.py`.
 
 ### Running it
 
@@ -262,6 +246,97 @@ Rules: the order is committed to the true record **before** a fault fires. When 
 
 ---
 
+## Loop & Stage reference
+
+Code: `loop/` (round loop, git versioning, event log, Judge/Builder/Adversary bridges, local hidden-set generator), `stage/view.py` (Rich live view and replay), `demo/` (v0 seed and scripted candidates). Tests: `tests/test_loop.py`.
+
+### Running it
+
+```bash
+uv run python -m loop.make_hidden                 # local stand-in hidden set -> hidden_set/ (gitignored)
+uv run python -m loop.run                         # scripted run: 4 rounds, ~35s, ends at v3
+uv run python -m stage.view                       # in a 2nd terminal: follow runs/latest live
+uv run python -m stage.view runs/latest/events.jsonl --replay   # play a finished run back (record the video from this)
+git -C runs/latest/evo log --oneline --decorate --graph --branches --tags   # the version history
+```
+
+Each run writes `runs/<run_id>/`: `events.jsonl`, `evo/` (its own git repo: `main` = promoted line, tags `v0..vN`, one branch per candidate, rejected branches never merged and annotated with a git note), and `rounds/NN/{attack.json, training/, traces.json, verdict.json}`.
+
+### One round (`loop/run.py`)
+1. **Adversary** returns a `Scenario`. It is run against the promoted version; if it survives, the attack joins `regression` and the round ends.
+2. If it breaks: it joins `training`. The promoted version's failing training traces go to `rounds/NN/traces.json`.
+3. **Builder** edits one git worktree per candidate (`r03-a`, `r03-b`).
+4. **Judge** runs every candidate on `regression` + `training` + `hidden` (each in its own Arena, in parallel). Only hidden scenarios whose faults were already attacked, plus counter-case faults (`transient_500`, `rate_limit_429`, `real_reject`), are active.
+5. **Decide:** eligible = passes everything; winner = most hidden passes, then fewer broker calls. Promote = merge + `git tag vN`; everyone else is rejected (rolled back).
+
+### Plug in your part (no Loop changes needed)
+
+| Flag | Default | Your implementation |
+|---|---|---|
+| `--builder` | `scripted:demo/scripted` | `aider` (models from `TRADEONCE_AIDER_MODELS=m1,m2`, extra flags from `TRADEONCE_AIDER_ARGS`) or `module:function` taking a `loop.builder.BuildContext` (`round, candidate, index, workdir, training_dir, traces_path, project_root`), editing `workdir/executor/` in place and returning a one-line summary |
+| `--adversary` | `queue:arena/scenarios/training@t02…,t05…,t07…,t06…` | `module:function(round, history) -> Scenario or None`; `history` = `[{round, scenario_id, faults, broke_promoted}]` |
+| `--judge` | `auditor.audit_run` per intent + the Arena's completion checks | `module:function(trace) -> [failure dicts with "code", "message"]` |
+| `--hidden` | `auditor/hidden/` if it exists, else `hidden_set/` | the Judge team's hidden set |
+| `--seed` | `demo/seed` (naive v0) | a directory containing `executor/` |
+
+**Judge bridge** (`loop/judge.py`): `ledger_to_snapshot(trace, intent)` converts the Arena ledger to `audit_run`'s snapshot shape. Orders map to intents by `client_order_id` (`== intent_id` or `"<intent_id>-<n>"`), falling back to a unique (symbol, side) match. `submit_unknown` / `retry` / `reconciled` events are derived from the broker call log; re-sending the same `client_order_id` counts as reconciled (the broker refuses duplicates).
+
+**Scripted candidates are a stand-in**, used to test the loop and as a deterministic fallback. They are hand-written, so if the demo uses them, say so. The real demo should run `--builder aider` (or the Builder team's function) and be recorded from replay.
+
+### Scripted run (what the default produces)
+
+| Round | Attack | Result |
+|---|---|---|
+| 1 | `t02_accept_then_timeout` | v0 breaks (`OVERFILL`, `UNSAFE_RETRY`). r01-a (client_order_id + lookup) → **v1**. r01-b (3s timeout) rejected: fails hidden `h01_timeout_long` |
+| 2 | `t05_timeout_then_stale` | v1 breaks (`COMPLETION`). r02-a (re-check 2 times) passes all training but fails hidden `h08_timeout_stale_long` → **rolled back**. r02-b (poll to a final state) → **v2** |
+| 3 | `t07_delayed_fill` | v2 survives; added to regression |
+| 4 | `t06_partial_fill` | v2 breaks. r04-a (follow-up order for the remainder) → **v3**. r04-b (re-send full order) rejected for `OVERFILL` |
+
+### Not built yet (Loop & Stage owner)
+- Final Alpaca paper trade through the promoted Executor (via `ArenaBroker` pointed at the paper URL).
+- Optional: show `agent_bridge/run_baseline.py` before/after tables in the Stage view.
+
+---
+
+## Agent bridge reference
+
+Code: `agent_bridge/`. Runs **virattt/ai-hedge-fund** (`aihf==2.7.0`, MIT, installed unmodified) through the Arena, using the agent's own interfaces.
+
+| File | What it is |
+|---|---|
+| `pyproject.toml` | **Separate environment**: `aihf` pins `rich<15`, the main project uses `rich>=15`. Imports `arena` from the repo root. |
+| `recorded/closes.json` | **Real** daily closes from Yahoo Finance (free, no key), 2024-06-03 to 06-07, for AAPL, AMZN, MSFT, NVDA and SPY. Fetched once by `fetch_prices.py` and frozen. |
+| `fetch_prices.py` | Re-fetches `closes.json` via yfinance (`--start --end --tickers`). Not needed for normal runs. |
+| `agent_setup.py` | The one fund configuration both runs share (analysts, 25% limit per name, $100k). |
+| `run_alone.py` | **The agent by itself**: its pipeline plus its own `SimBroker` (never fails). No Arena, no Executor. Writes `reports/alone.json`. |
+| `recorded/signals.json` | Cached analyst convictions per day (`cached_value`, `cached_momentum`), standing in for its LLM analysts. |
+| `recorded_data.py` | `RecordedDataClient` (its `DataClient` interface) and `CachedAnalyst` (its analyst interface). |
+| `arena_broker.py` | `ArenaBroker`: its 3-method `Broker` protocol (`positions`, `cash`, `place_order`) backed by **our Executor**, called the same way the Arena runner calls it (stdin/stdout). |
+| `run_baseline.py` | One assess (06-03) + execute (06-04) cycle of its real pipeline per fault set from `arena/scenarios/training/`. Writes `reports/<label>.json`. |
+
+```bash
+cd agent_bridge && uv sync                                          # once
+uv run python run_alone.py                                          # the agent alone, perfect broker
+uv run python run_baseline.py                                       # before: naive v0 Executor
+uv run python run_baseline.py --executor-cmd "python -m executor.run" --label after   # after: promoted Executor
+```
+
+**Everything is free:** real prices come from Yahoo (no key), and the analysts are cached. Running the agent's own LLM analysts is not free: they read company fundamentals from Financial Datasets (paid key). It does support a free Gemini model (`GOOGLE_API_KEY`, `gemini-3.8-flash`), but the fundamentals are still paid.
+
+Alone (`run_alone.py`), the agent decides 4 orders on the cached signals: buy 128 AAPL, 60 AMZN, 60 MSFT, 214 NVDA. It ends at about 25% / 11% / 25% / 25% of NAV, all within its 25% limit. Baseline with v0 through the Arena (`reports/baseline.json`):
+
+| Scenario | Outcome (v0) |
+|---|---|
+| clean, transient 500, duplicate-fill activity, real reject | SAFE (4/9; for real reject, halting with nothing traded is correct) |
+| accept-then-timeout, accept-then-500, timeout-then-stale | DUPLICATE + LIMIT_BREACH + NEGATIVE_CASH: 5 orders at the broker for 4 decided, AAPL 50%, cash -$10,396, agent's books "match" because they mirror the broker |
+| partial fill, delayed fill | HALTED_DESYNC: the agent raised after the first order, but that order (half or fully) filled at the broker without the agent knowing |
+
+**Outcome classes:** `SILENT_DESYNC` (agent finished but its books differ from the broker), `DUPLICATE`, `LIMIT_BREACH` (>25% in one name), `NEGATIVE_CASH`, `HALTED_DESYNC` (raised, but fills it doesn't know about exist), `HALTED_CLEAN` (raised, nothing unknown happened), `SAFE`.
+
+**Point it at Alpaca paper:** `ArenaBroker(base_url="https://paper-api.alpaca.markets", ...)` with real `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY` in the environment. Only with the promoted Executor, and only for the final demo trade.
+
+---
+
 ## Agent stack (use existing tools, build only what's ours)
 
 | Part | Tool | Why |
@@ -309,10 +384,10 @@ Aider only sees the files listed, so it cannot read `auditor/` or the hidden set
 3. The Adversary attacks with a **stale order status**.
 4. One candidate "fixes" it by never retrying. That passes training but fails the hidden real-rejection case, so it is **rolled back automatically**.
 5. The better candidate wins the tournament and is **promoted to v2**.
-6. **Round 2, the external agent:** on a held-out day the agent already holds its target in AAPL but buys the full amount again (or trades on a missing price). The Judge catches it. The Builder fixes the fork's portfolio code to size from current holdings, and the fork gets its own promoted version.
-7. The improved agent's decisions run through the promoted Executor and place a small trade on the **Alpaca paper account**.
+6. **On a real third-party agent:** ai-hedge-fund, unmodified, runs through the same 9 faults. Before (v0): 4/9 safe, and a timeout makes it put **50% of the fund in AAPL against its own 25% limit, with cash at -$10,396, without noticing**. After (promoted Executor): same agent, same faults, all safe.
+7. The same agent places a small trade on the **Alpaca paper account** through the promoted Executor.
 
-Closing line: "ai-hedge-fund is someone else's agent. Every change to it in our fork was written by TradeOnce and verified by our Judge."
+Closing line: "ai-hedge-fund is someone else's agent. We didn't touch its code. TradeOnce gave it the live broker it was missing, and made that broker safe on its own."
 
 ## Timeline
 
@@ -322,7 +397,7 @@ Closing line: "ai-hedge-fund is someone else's agent. Every change to it in our 
 | 1:30 | Arena working; Executor v0; invariants; event log |
 | 1:45 | First integration: v0 duplicate order caught by the Auditor (fallback demo) |
 | 3:15 | Full loop: promote → attack → rollback → promote |
-| 3:30 | Round 2 working: agent fork, cached signals, decision invariants, one promoted fix. Otherwise cut it and demo the Executor loop only |
+| 3:30 | Agent bridge "after" run with the promoted Executor (bridge itself is done) |
 | 4:00 | Feature freeze; Alpaca paper trade |
 | 4:40 | Video recorded from replay, README done, repo public |
 | 5:00 | Submitted |
@@ -330,8 +405,8 @@ Closing line: "ai-hedge-fund is someone else's agent. Every change to it in our 
 ## Rules
 
 - Chaos tests run only against the simulated broker, never against real funds.
-- Agents cannot write to `auditor/` or the hidden set. The Builder may only write under `executor/` and the fork's risk + portfolio files in `agent/`. Never the cached signals or the analysts.
-- The external agent is third-party: keep its license file, credit it in the README, and never present it as our work.
+- Agents cannot write to `auditor/` or the hidden set. The Builder may only write under `executor/`. Never `agent_bridge/` (including the recorded data) or the installed agent.
+- The external agent is third-party (ai-hedge-fund, MIT): credit it in the README and never present it as our work.
 - The repo is public and a sandboxed Builder can search the web, so **the hidden set is never committed** before judging. `auditor/hidden/` and `hidden_set/` are gitignored; generate or store it locally.
 - Agents never get the Arena admin token.
 - Meta credit claims close at 3:00 PM.

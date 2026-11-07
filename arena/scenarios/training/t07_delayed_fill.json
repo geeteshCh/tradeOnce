@@ -1,0 +1,4 @@
+{"id": "t07_delayed_fill", "seed": 7, "description": "Order is accepted as 'new' and only fills 3 broker calls later (or after the run ends). Placing a replacement double-fills.",
+ "intents": [{"intent_id": "i1", "symbol": "AMZN", "side": "buy", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "delayed_fill", "params": {"after_calls": 3}}],
+ "prices": {"AMZN": 180.0}}

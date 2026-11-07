@@ -1,0 +1,11 @@
+{
+  "_note": "Cached analyst convictions (-1..1) per assessment date. Stand-ins for ai-hedge-fund's LLM analysts, frozen so every run is identical and costs nothing.",
+  "2024-06-03": {
+    "cached_value":    {"AAPL": 0.8, "MSFT": 0.4, "NVDA": 0.2, "AMZN": 0.6},
+    "cached_momentum": {"AAPL": 0.3, "MSFT": 0.6, "NVDA": 1.0, "AMZN": -0.2}
+  },
+  "2024-06-04": {
+    "cached_value":    {"AAPL": 0.7, "MSFT": 0.5, "NVDA": 0.1, "AMZN": 0.6},
+    "cached_momentum": {"AAPL": 0.2, "MSFT": 0.7, "NVDA": 0.9, "AMZN": 0.1}
+  }
+}

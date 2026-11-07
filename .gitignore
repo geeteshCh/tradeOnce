@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+# The hidden held-out set must never be in the public repo (the Builder's sandbox can search the web).
+auditor/hidden/
+hidden_set/
+runs/
+events.jsonl
+.env

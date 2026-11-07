@@ -1,0 +1,4 @@
+{"id": "t06_partial_fill", "seed": 6, "description": "Half the order fills, then the remainder is canceled. The intent wants the full qty.",
+ "intents": [{"intent_id": "i1", "symbol": "NVDA", "side": "buy", "qty": 4}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "partial_fill_then_cancel", "params": {"fill_ratio": 0.5}}],
+ "prices": {"NVDA": 120.0}}

@@ -1,0 +1,5 @@
+{"id": "t09_real_reject", "seed": 9, "description": "The broker rejects the order for insufficient buying power (403, nothing recorded). Correct result: report 'rejected', place nothing.",
+ "intents": [{"intent_id": "i1", "symbol": "TSLA", "side": "buy", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": [1, 2, 3, 4, 5], "fault": "real_reject"}],
+ "prices": {"TSLA": 250.0},
+ "expected_positions": {}}

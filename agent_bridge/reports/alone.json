@@ -1,0 +1,735 @@
+{
+  "schema_version": 2,
+  "fund": "aihf-cached",
+  "as_of": "2024-06-03",
+  "spec": {
+    "schema_version": 2,
+    "name": "aihf-cached",
+    "strategies": [
+      {
+        "name": "main",
+        "display_name": null,
+        "weight": 1.0,
+        "models": [
+          {
+            "name": "cached_momentum",
+            "weight": 1.0,
+            "params": {}
+          },
+          {
+            "name": "cached_value",
+            "weight": 1.0,
+            "params": {}
+          }
+        ],
+        "blend": {
+          "method": "conviction_weighted",
+          "gross_target": 1.0,
+          "mode": "long_short"
+        }
+      }
+    ],
+    "risk": {
+      "max_position_pct": 0.25,
+      "max_gross_exposure": 1.0
+    },
+    "costs": {
+      "spread_bps": 0.0,
+      "commission_per_share": 0.0,
+      "impact_coefficient": 1.0,
+      "min_trade_pct": 0.005
+    },
+    "capital": 100000.0,
+    "rebalance": "weekly",
+    "benchmark": "SPY"
+  },
+  "universe": [
+    "AAPL",
+    "AMZN",
+    "MSFT",
+    "NVDA"
+  ],
+  "marks": {
+    "AAPL": 194.35,
+    "AMZN": 179.34,
+    "MSFT": 416.07,
+    "NVDA": 116.44
+  },
+  "skipped": [],
+  "strategies": [
+    {
+      "name": "main",
+      "slice": 1.0,
+      "signals": [
+        {
+          "model_name": "cached_momentum",
+          "ticker": "AAPL",
+          "date": "2024-06-03",
+          "value": 0.3,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_value",
+          "ticker": "AAPL",
+          "date": "2024-06-03",
+          "value": 0.8,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_momentum",
+          "ticker": "AMZN",
+          "date": "2024-06-03",
+          "value": -0.2,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_value",
+          "ticker": "AMZN",
+          "date": "2024-06-03",
+          "value": 0.6,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_momentum",
+          "ticker": "MSFT",
+          "date": "2024-06-03",
+          "value": 0.6,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_value",
+          "ticker": "MSFT",
+          "date": "2024-06-03",
+          "value": 0.4,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_momentum",
+          "ticker": "NVDA",
+          "date": "2024-06-03",
+          "value": 1.0,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        },
+        {
+          "model_name": "cached_value",
+          "ticker": "NVDA",
+          "date": "2024-06-03",
+          "value": 0.2,
+          "reasoning": null,
+          "components": {},
+          "metadata": {
+            "cached": true
+          },
+          "horizon_days": 1
+        }
+      ],
+      "convictions": {
+        "AAPL": 0.55,
+        "AMZN": 0.19999999999999998,
+        "MSFT": 0.5,
+        "NVDA": 0.6
+      },
+      "weights": {
+        "AAPL": 0.2972972972972973,
+        "AMZN": 0.1081081081081081,
+        "MSFT": 0.27027027027027023,
+        "NVDA": 0.3243243243243243
+      },
+      "eligible_scores": {
+        "AAPL": 0.55,
+        "AMZN": 0.19999999999999998,
+        "MSFT": 0.5,
+        "NVDA": 0.6
+      },
+      "flat_reason": null,
+      "final_contribution": {
+        "AAPL": 0.25,
+        "AMZN": 0.1081081081081081,
+        "MSFT": 0.25,
+        "NVDA": 0.24999999999999997
+      }
+    }
+  ],
+  "target_weights": {
+    "AAPL": 0.2972972972972973,
+    "AMZN": 0.1081081081081081,
+    "MSFT": 0.27027027027027023,
+    "NVDA": 0.3243243243243243
+  },
+  "clamps": [
+    {
+      "limit": "max_position_pct",
+      "ticker": "AAPL",
+      "before": 0.2972972972972973,
+      "after": 0.25
+    },
+    {
+      "limit": "max_position_pct",
+      "ticker": "MSFT",
+      "before": 0.27027027027027023,
+      "after": 0.25
+    },
+    {
+      "limit": "max_position_pct",
+      "ticker": "NVDA",
+      "before": 0.3243243243243243,
+      "after": 0.25
+    }
+  ],
+  "final_weights": {
+    "AAPL": 0.25,
+    "AMZN": 0.1081081081081081,
+    "MSFT": 0.25,
+    "NVDA": 0.25
+  },
+  "equity_before": 100000.0,
+  "cash_before": 100000.0,
+  "orders": [
+    {
+      "ticker": "AAPL",
+      "side": "buy",
+      "quantity": 128,
+      "price": 194.35,
+      "adv": 1000000.0,
+      "volatility": 0.0
+    },
+    {
+      "ticker": "AMZN",
+      "side": "buy",
+      "quantity": 60,
+      "price": 179.34,
+      "adv": 1000000.0,
+      "volatility": 0.0
+    },
+    {
+      "ticker": "MSFT",
+      "side": "buy",
+      "quantity": 60,
+      "price": 416.07,
+      "adv": 1000000.0,
+      "volatility": 0.0
+    },
+    {
+      "ticker": "NVDA",
+      "side": "buy",
+      "quantity": 214,
+      "price": 116.44,
+      "adv": 1000000.0,
+      "volatility": 0.0
+    }
+  ],
+  "fills": [
+    {
+      "ticker": "AAPL",
+      "side": "buy",
+      "quantity": 128,
+      "price": 194.35
+    },
+    {
+      "ticker": "AMZN",
+      "side": "buy",
+      "quantity": 60,
+      "price": 179.34
+    },
+    {
+      "ticker": "MSFT",
+      "side": "buy",
+      "quantity": 60,
+      "price": 416.07
+    },
+    {
+      "ticker": "NVDA",
+      "side": "buy",
+      "quantity": 214,
+      "price": 116.44
+    }
+  ],
+  "positions": {
+    "AAPL": 128,
+    "AMZN": 60,
+    "MSFT": 60,
+    "NVDA": 214
+  },
+  "cash": 14480.439999999991,
+  "nav": 99999.99999999999,
+  "risk_scale_factor": null,
+  "original_assessment": {
+    "schema_version": 2,
+    "fund": "aihf-cached",
+    "as_of": "2024-06-03",
+    "spec": {
+      "schema_version": 2,
+      "name": "aihf-cached",
+      "strategies": [
+        {
+          "name": "main",
+          "display_name": null,
+          "weight": 1.0,
+          "models": [
+            {
+              "name": "cached_momentum",
+              "weight": 1.0,
+              "params": {}
+            },
+            {
+              "name": "cached_value",
+              "weight": 1.0,
+              "params": {}
+            }
+          ],
+          "blend": {
+            "method": "conviction_weighted",
+            "gross_target": 1.0,
+            "mode": "long_short"
+          }
+        }
+      ],
+      "risk": {
+        "max_position_pct": 0.25,
+        "max_gross_exposure": 1.0
+      },
+      "costs": {
+        "spread_bps": 0.0,
+        "commission_per_share": 0.0,
+        "impact_coefficient": 1.0,
+        "min_trade_pct": 0.005
+      },
+      "capital": 100000.0,
+      "rebalance": "weekly",
+      "benchmark": "SPY"
+    },
+    "universe": [
+      "AAPL",
+      "AMZN",
+      "MSFT",
+      "NVDA"
+    ],
+    "marks": {
+      "AAPL": 194.03,
+      "AMZN": 178.34,
+      "MSFT": 413.52,
+      "NVDA": 115.0
+    },
+    "skipped": [],
+    "strategies": [
+      {
+        "name": "main",
+        "slice": 1.0,
+        "signals": [
+          {
+            "model_name": "cached_momentum",
+            "ticker": "AAPL",
+            "date": "2024-06-03",
+            "value": 0.3,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "AAPL",
+            "date": "2024-06-03",
+            "value": 0.8,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "AMZN",
+            "date": "2024-06-03",
+            "value": -0.2,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "AMZN",
+            "date": "2024-06-03",
+            "value": 0.6,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "MSFT",
+            "date": "2024-06-03",
+            "value": 0.6,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "MSFT",
+            "date": "2024-06-03",
+            "value": 0.4,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "NVDA",
+            "date": "2024-06-03",
+            "value": 1.0,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "NVDA",
+            "date": "2024-06-03",
+            "value": 0.2,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          }
+        ],
+        "convictions": {
+          "AAPL": 0.55,
+          "AMZN": 0.19999999999999998,
+          "MSFT": 0.5,
+          "NVDA": 0.6
+        },
+        "weights": {
+          "AAPL": 0.2972972972972973,
+          "AMZN": 0.1081081081081081,
+          "MSFT": 0.27027027027027023,
+          "NVDA": 0.3243243243243243
+        },
+        "eligible_scores": {
+          "AAPL": 0.55,
+          "AMZN": 0.19999999999999998,
+          "MSFT": 0.5,
+          "NVDA": 0.6
+        },
+        "flat_reason": null,
+        "final_contribution": {
+          "AAPL": 0.25,
+          "AMZN": 0.1081081081081081,
+          "MSFT": 0.25,
+          "NVDA": 0.24999999999999997
+        }
+      }
+    ],
+    "target_weights": {
+      "AAPL": 0.2972972972972973,
+      "AMZN": 0.1081081081081081,
+      "MSFT": 0.27027027027027023,
+      "NVDA": 0.3243243243243243
+    },
+    "clamps": [
+      {
+        "limit": "max_position_pct",
+        "ticker": "AAPL",
+        "before": 0.2972972972972973,
+        "after": 0.25
+      },
+      {
+        "limit": "max_position_pct",
+        "ticker": "MSFT",
+        "before": 0.27027027027027023,
+        "after": 0.25
+      },
+      {
+        "limit": "max_position_pct",
+        "ticker": "NVDA",
+        "before": 0.3243243243243243,
+        "after": 0.25
+      }
+    ],
+    "final_weights": {
+      "AAPL": 0.25,
+      "AMZN": 0.1081081081081081,
+      "MSFT": 0.25,
+      "NVDA": 0.25
+    },
+    "risk_scale_factor": null
+  },
+  "refreshed_assessment": {
+    "schema_version": 2,
+    "fund": "aihf-cached",
+    "as_of": "2024-06-03",
+    "spec": {
+      "schema_version": 2,
+      "name": "aihf-cached",
+      "strategies": [
+        {
+          "name": "main",
+          "display_name": null,
+          "weight": 1.0,
+          "models": [
+            {
+              "name": "cached_momentum",
+              "weight": 1.0,
+              "params": {}
+            },
+            {
+              "name": "cached_value",
+              "weight": 1.0,
+              "params": {}
+            }
+          ],
+          "blend": {
+            "method": "conviction_weighted",
+            "gross_target": 1.0,
+            "mode": "long_short"
+          }
+        }
+      ],
+      "risk": {
+        "max_position_pct": 0.25,
+        "max_gross_exposure": 1.0
+      },
+      "costs": {
+        "spread_bps": 0.0,
+        "commission_per_share": 0.0,
+        "impact_coefficient": 1.0,
+        "min_trade_pct": 0.005
+      },
+      "capital": 100000.0,
+      "rebalance": "weekly",
+      "benchmark": "SPY"
+    },
+    "universe": [
+      "AAPL",
+      "AMZN",
+      "MSFT",
+      "NVDA"
+    ],
+    "marks": {
+      "AAPL": 194.03,
+      "AMZN": 178.34,
+      "MSFT": 413.52,
+      "NVDA": 115.0
+    },
+    "skipped": [],
+    "strategies": [
+      {
+        "name": "main",
+        "slice": 1.0,
+        "signals": [
+          {
+            "model_name": "cached_momentum",
+            "ticker": "AAPL",
+            "date": "2024-06-03",
+            "value": 0.3,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "AAPL",
+            "date": "2024-06-03",
+            "value": 0.8,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "AMZN",
+            "date": "2024-06-03",
+            "value": -0.2,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "AMZN",
+            "date": "2024-06-03",
+            "value": 0.6,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "MSFT",
+            "date": "2024-06-03",
+            "value": 0.6,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "MSFT",
+            "date": "2024-06-03",
+            "value": 0.4,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_momentum",
+            "ticker": "NVDA",
+            "date": "2024-06-03",
+            "value": 1.0,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          },
+          {
+            "model_name": "cached_value",
+            "ticker": "NVDA",
+            "date": "2024-06-03",
+            "value": 0.2,
+            "reasoning": null,
+            "components": {},
+            "metadata": {
+              "cached": true
+            },
+            "horizon_days": 1
+          }
+        ],
+        "convictions": {
+          "AAPL": 0.55,
+          "AMZN": 0.19999999999999998,
+          "MSFT": 0.5,
+          "NVDA": 0.6
+        },
+        "weights": {
+          "AAPL": 0.2972972972972973,
+          "AMZN": 0.1081081081081081,
+          "MSFT": 0.27027027027027023,
+          "NVDA": 0.3243243243243243
+        },
+        "eligible_scores": {
+          "AAPL": 0.55,
+          "AMZN": 0.19999999999999998,
+          "MSFT": 0.5,
+          "NVDA": 0.6
+        },
+        "flat_reason": null,
+        "final_contribution": {
+          "AAPL": 0.25,
+          "AMZN": 0.1081081081081081,
+          "MSFT": 0.25,
+          "NVDA": 0.24999999999999997
+        }
+      }
+    ],
+    "target_weights": {
+      "AAPL": 0.2972972972972973,
+      "AMZN": 0.1081081081081081,
+      "MSFT": 0.27027027027027023,
+      "NVDA": 0.3243243243243243
+    },
+    "clamps": [
+      {
+        "limit": "max_position_pct",
+        "ticker": "AAPL",
+        "before": 0.2972972972972973,
+        "after": 0.25
+      },
+      {
+        "limit": "max_position_pct",
+        "ticker": "MSFT",
+        "before": 0.27027027027027023,
+        "after": 0.25
+      },
+      {
+        "limit": "max_position_pct",
+        "ticker": "NVDA",
+        "before": 0.3243243243243243,
+        "after": 0.25
+      }
+    ],
+    "final_weights": {
+      "AAPL": 0.25,
+      "AMZN": 0.1081081081081081,
+      "MSFT": 0.25,
+      "NVDA": 0.25
+    },
+    "risk_scale_factor": null
+  },
+  "execution_as_of": "2024-06-04",
+  "execution_policy": "next_close"
+}
