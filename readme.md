@@ -7,12 +7,13 @@ boundaries.
 ## MongoDB client
 
 The shared `storage` package records Builder candidates and Judge verdicts in
-two collections in the `tradeonce` database:
+three collections in the `tradeonce` database:
 
 | Collection | Pydantic model | Contents |
 | --- | --- | --- |
 | `builder_candidates` | `BuilderCandidate` | Run, round, candidate name, git revision, and summary |
 | `verification_results` | `VerificationResult` | Candidate ID, promote/reject decision, pass rate, failures, and reasons |
+| `harness_memory` | `HarnessMemory` | Latest approved harness and Harness² lesson library per scope, with revision and proof IDs |
 
 Both documents use string UUIDs as MongoDB `_id` values and UTC creation times.
 `VerificationResult.candidate_id` references `BuilderCandidate.id`. Each evaluation
@@ -21,7 +22,8 @@ client validates records when constructing them and when reading them from Mongo
 
 ### Setup
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and a MongoDB connection.
+Requires Python 3.12 or 3.13, [uv](https://docs.astral.sh/uv/), and a MongoDB connection.
+The pinned Harness² dependency requires this Python range; `.python-version` selects 3.12.
 
 ```bash
 uv sync
@@ -82,8 +84,8 @@ the records, add typed fields in `storage/models.py`; the client serializes them
 automatically. BSON stores timestamps to millisecond precision, which the models
 normalize before writing.
 
-MongoDB holds metadata, not executable code or hidden test fixtures. Code and
-`LESSONS.md` stay versioned in git; held-out inputs remain private to the Judge.
+MongoDB holds candidate metadata and approved Markdown harness/library snapshots.
+Application code stays versioned in git; held-out inputs remain private to the Judge.
 Saving a verdict does not promote or roll back code, and this shared client does
 not enforce which agent can write a verdict. The orchestrator owns those rules.
 
@@ -192,7 +194,112 @@ direnv exec . env RUN_MODEL_API_TESTS=1 uv run python -m unittest discover -s te
 
 ## Built during the hackathon
 
-The current code includes our deterministic auditor, MongoDB client, and model API clients.
-The Arena, Builder, Judge orchestration, and external-agent integration described
+The current code includes our deterministic auditor, MongoDB client, model API clients,
+and the Harness² integration below. The full Arena, coding Builder, Judge orchestration, and external-agent integration described
 in `AGENTS.md` are separate workstreams. Any external trading agent remains its
 authors' work; its license and attribution must accompany its integration.
+
+## Harness² refinement and persistent memory
+
+`harnessing` calls Google's real `harness2.core.schedule.run_task` with our
+Gemini proposer, a TradeOnce benchmark adapter, and trusted application callbacks.
+The upstream dependency is pinned to commit
+[`6868817`](https://github.com/google-research/harness2/tree/6868817518876de8fd170c6a8354daca273b6191)
+and remains Google's Apache-2.0-licensed work. Our adapter, proposer, verification
+gate, MongoDB persistence, and retry-policy fixture are implemented here.
+
+```text
+approved MongoDB memory → Harness² + Gemini → candidate + lesson
+                                             ↓
+                         private verification versus the same baseline
+                                             ↓
+                         improvement → advance memory revision
+                         rejection   → retain previous memory
+```
+
+The initial editable surface is four Markdown files: `systemprompt.md`,
+`guardrails.md`, `memory.md`, and `toolguidance.md`. Gemini returns typed edits;
+the proposer writes only these files. It receives public task inputs and execution
+traces. The integration does not launch an agent CLI or execute generated scripts.
+The adapter uses Harness²'s OpenCode prompt vocabulary for this text surface;
+all model calls use the Google GenAI SDK.
+
+### Try the complete loop
+
+With MongoDB and Gemini configured as above:
+
+```bash
+direnv exec . uv run python -m harnessing --scope demo-executor
+# Include the optional public-trace SubQ assessment:
+direnv exec . uv run python -m harnessing --scope demo-executor --subq
+```
+
+This fixture starts with a policy that blindly retries a timed-out submission,
+creating duplicate orders. Gemini can propose lookup-before-retry. The existing
+deterministic auditor checks broker ledger truth. Runtime-generated private cases
+include submissions that were accepted and submissions that were never recorded;
+simply disabling retries fails the latter. One verifier freezes the same cases for
+baseline and candidate. Private inputs never enter the proposer context or git.
+This proves the framework wiring with a declarative retry policy; connecting a
+full coding Executor and Arena is the next application integration.
+
+`--k 1` runs the base, invariant, domain, and composed policies, with a reflection
+call for the lesson. `--mode sequential` is the default; `parallel` is also supported.
+Artifacts go into ignored `runs/harness2/<run_id>/`. The final JSON reports the
+candidate, verdict, loaded memory revision, and resulting memory revision.
+
+### Use it from your Builder
+
+```python
+from harnessing import GeminiHarnessProposer, HarnessRunner, HarnessSettings
+from harnessing.demo import DEFAULT_HARNESS, DEMO_TASK, demo_probe, make_demo_verifier
+from providers import GeminiClient, GeminiSettings
+from storage import MongoStore
+
+settings = GeminiSettings.from_env()
+with MongoStore.from_env() as store, GeminiClient(settings) as gemini:
+    store.initialize()
+    runner = HarnessRunner(
+        store,
+        GeminiHarnessProposer(gemini, settings.model),
+        HarnessSettings(scope="demo-executor", git_ref="<actual source commit SHA>"),
+    )
+    result = runner.run(
+        DEMO_TASK,
+        initial_harness=DEFAULT_HARNESS,
+        probe=demo_probe,
+        verifier=make_demo_verifier(),
+    )
+```
+
+For the application, replace the demo with a `HarnessTask`, a trusted
+`Probe(task, harness) -> ProbeResult`, and a private
+`Verifier(task, harness, probe) -> VerificationOutcome`. Use a separate scope per
+compatible application/domain. These callbacks own execution isolation and the
+actual regression/held-out checks. Never include private fixtures in task inputs,
+public probe data, or harness files. SubQ can advise on public observations, but
+the deterministic verification gate alone authorizes adoption.
+
+Only a changed harness that passes every required check and improves on the
+baseline may advance memory. Improvement means fixing a failing baseline, or
+fewer measured broker calls when both pass. A supported lesson is required too.
+Before saving `harness_memory`, the store checks the candidate's exact harness
+contents, source revision, and passing verdict. Revision-based compare-and-swap
+rejects concurrent stale writes. The next process reloads both the approved
+harness and the complete upstream library (`INDEX.md`, adopted trees, and
+`EXPERIENCE.md`). Rejected runs retain the prior memory snapshot. Candidate and
+verdict history remains in the existing collections for inspection.
+
+The orchestrator must own verifier and database-write authority. This shared
+client is not an authorization boundary; direct database access can bypass its
+proof checks. The fixture's source revision records provenance and does not create
+a git commit for each generated policy.
+
+Offline tests exercise the real upstream scheduler with a scripted proposer.
+The opt-in MongoDB tests also prove adoption and reload across fresh runner/store
+instances, and remove only their own records:
+
+```bash
+uv run python -m unittest discover -s tests -v
+direnv exec . env RUN_MONGODB_TESTS=1 uv run python -m unittest discover -s tests -v
+```

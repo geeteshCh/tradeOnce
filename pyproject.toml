@@ -2,22 +2,35 @@
 name = "tradeonce"
 version = "0.1.0"
 description = "A verified improvement loop for trading-agent execution code."
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "google-genai>=3.0.0",
+    "harness2",
     "httpx>=0.28.1",
     "pydantic>=2,<3",
     "pymongo>=4.15,<5",
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"
 default = true
 
+[tool.uv.sources]
+harness2 = { git = "https://github.com/google-research/harness2.git", rev = "6868817518876de8fd170c6a8354daca273b6191" }
+
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["harness2.*"]
+ignore_missing_imports = true
+
+# The fixed legacy auditor is outside this integration's typed boundary.
+[[tool.mypy.overrides]]
+module = ["auditor.*"]
+ignore_errors = true

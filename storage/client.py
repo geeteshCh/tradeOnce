@@ -7,10 +7,11 @@ from pymongo import ASCENDING, MongoClient
 from pymongo.database import Database
 
 from storage.config import MongoSettings
-from storage.models import BuilderCandidate, VerificationResult
+from storage.models import BuilderCandidate, HarnessMemory, VerificationResult
 
 BUILDER_CANDIDATES = "builder_candidates"
 VERIFICATION_RESULTS = "verification_results"
+HARNESS_MEMORY = "harness_memory"
 
 
 class MongoStore:
@@ -30,7 +31,7 @@ class MongoStore:
         return cls(MongoSettings.from_env())
 
     def initialize(self) -> None:
-        """Create the two collections and indexes for their common read paths."""
+        """Create the collections and indexes for their common read paths."""
         self._database[BUILDER_CANDIDATES].create_index(
             [("run_id", ASCENDING), ("round", ASCENDING), ("_id", ASCENDING)],
             name="candidates_by_run_round",
@@ -42,6 +43,10 @@ class MongoStore:
                 ("_id", ASCENDING),
             ],
             name="verifications_by_candidate_time",
+        )
+        self._database[HARNESS_MEMORY].create_index(
+            [("candidate_id", ASCENDING)],
+            name="memory_by_candidate",
         )
 
     def ping(self) -> bool:
@@ -95,6 +100,59 @@ class MongoStore:
             .sort([("created_at", ASCENDING), ("_id", ASCENDING)])
         )
         return [VerificationResult.model_validate(document) for document in documents]
+
+    def get_harness_memory(self, scope: str) -> HarnessMemory | None:
+        """Read and validate the latest approved harness snapshot for a scope."""
+        document = self._database[HARNESS_MEMORY].find_one({"_id": scope})
+        return HarnessMemory.model_validate(document) if document is not None else None
+
+    def save_harness_memory(
+        self, memory: HarnessMemory, *, expected_revision: int = 0
+    ) -> None:
+        """Commit approved memory using an atomic revision compare-and-swap.
+
+        The referenced candidate and held-out verification must already exist. Only
+        a perfect promotion verdict can advance memory, and concurrent or stale
+        writers cannot overwrite the current revision.
+        """
+        if memory.id != memory.scope:
+            raise ValueError("memory id must match scope")
+        if memory.revision != expected_revision + 1:
+            raise ValueError("memory revision must follow expected revision")
+
+        candidate = self.get_candidate(memory.candidate_id)
+        if candidate is None:
+            raise ValueError("memory candidate does not exist")
+        if candidate.git_ref != memory.git_ref:
+            raise ValueError("memory git ref does not match candidate")
+        if candidate.harness_files != memory.harness_files:
+            raise ValueError("memory harness files do not match candidate")
+
+        verification = self.get_verification(memory.verification_id)
+        if verification is None:
+            raise ValueError("memory verification does not exist")
+        if verification.candidate_id != memory.candidate_id:
+            raise ValueError("memory verification does not match candidate")
+        if verification.decision != "promote":
+            raise ValueError("memory verification did not promote candidate")
+        if verification.invariant_failures:
+            raise ValueError("memory verification has invariant failures")
+        if verification.hidden_pass_rate != 1:
+            raise ValueError("memory verification did not pass all hidden tests")
+
+        document = memory.model_dump(by_alias=True)
+        collection = self._database[HARNESS_MEMORY]
+        if expected_revision == 0:
+            collection.insert_one(document)
+            return
+
+        result = collection.replace_one(
+            {"_id": memory.scope, "revision": expected_revision},
+            document,
+            upsert=False,
+        )
+        if result.matched_count == 0:
+            raise ValueError("stale memory revision")
 
     def close(self) -> None:
         """Release connection pools when this store is no longer needed."""
