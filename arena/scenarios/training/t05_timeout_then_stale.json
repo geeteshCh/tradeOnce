@@ -1,0 +1,5 @@
+{"id": "t05_timeout_then_stale", "seed": 5, "description": "Timeout after accept, then the order lookup reports status 'new' / filled_qty 0 for 2 calls even though it filled.",
+ "intents": [{"intent_id": "i1", "symbol": "AAPL", "side": "buy", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "accept_then_timeout", "params": {"delay_s": 1.5}},
+            {"match": "GET /v2/orders*", "nth": 1, "fault": "stale_status", "params": {"calls": 2}}],
+ "prices": {"AAPL": 200.0}}

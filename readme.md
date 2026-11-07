@@ -195,8 +195,10 @@ direnv exec . env RUN_MODEL_API_TESTS=1 uv run python -m unittest discover -s te
 ## Built during the hackathon
 
 The current code includes our deterministic auditor, MongoDB client, model API clients,
-and the Harness² integration below. The full Arena, coding Builder, Judge orchestration, and external-agent integration described
-in `AGENTS.md` are separate workstreams. Any external trading agent remains its
+and the Harness² integration below. The Arena, coding Builder, Judge orchestration,
+and external-agent bridge described in `AGENTS.md` are implemented in their own
+packages. Connecting Harness²'s refinement callbacks to that coding loop remains
+a separate application integration. Any external trading agent remains its
 authors' work; its license and attribution must accompany its integration.
 
 ## Harness² refinement and persistent memory

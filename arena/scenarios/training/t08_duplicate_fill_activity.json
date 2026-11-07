@@ -1,0 +1,5 @@
+{"id": "t08_duplicate_fill_activity", "seed": 8, "description": "The fill appears twice in the FILL activity feed. Executors that sum activities think they bought 2.",
+ "intents": [{"intent_id": "i1", "symbol": "AAPL", "side": "buy", "qty": 1},
+             {"intent_id": "i2", "symbol": "AAPL", "side": "sell", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "duplicate_fill"}],
+ "prices": {"AAPL": 200.0}}

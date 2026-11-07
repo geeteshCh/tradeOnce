@@ -1,0 +1,4 @@
+{"id": "t04_transient_500", "seed": 4, "description": "Counter-case: the first POST fails with 500 and nothing is recorded. The intent should still end up filled, so a safe retry is correct.",
+ "intents": [{"intent_id": "i1", "symbol": "TSLA", "side": "buy", "qty": 1}],
+ "faults": [{"match": "POST /v2/orders", "nth": 1, "fault": "transient_500"}],
+ "prices": {"TSLA": 250.0}}
