@@ -29,7 +29,15 @@ def recorded_run() -> CodingDemoReport:
 def test_report_uses_measured_verdict_and_does_not_adopt_rejected_lesson() -> None:
     report = recorded_run()
     state = presentation_from_report(report)
-    assert "5/5 unseen tests passed. Accepted." in state.stages[2].summary
+    assert "Wanted 1 AAPL; the broker bought 1" in state.stages[2].summary
+    assert "5/5" not in state.stages[2].summary
+    assert "Lost reply: no extra shares" in state.stages[2].details
+    assert "Rejected trade: nothing was bought" in state.stages[2].details
+    assert "3 attempts → related problem: 1" in state.stages[4].summary
+    for stage in state.stages:
+        assert "5/5" not in stage.summary + stage.details
+        assert report.first.verification_id not in stage.summary + stage.details
+        assert report.transfer.verification_id not in stage.summary + stage.details
     assert "1 repair proposal" in state.stages[4].details
     rejected = report.first.model_copy(
         update={"decision": "reject", "memory_revision": 0, "hidden_passed": 0}
@@ -37,9 +45,13 @@ def test_report_uses_measured_verdict_and_does_not_adopt_rejected_lesson() -> No
     state = presentation_from_report(
         report.model_copy(update={"first": rejected, "transfer": None})
     )
-    assert "0/5" in state.stages[2].summary
+    assert "0/5" not in state.stages[2].details
     assert "original version kept" in state.stages[2].summary
     assert state.stages[3].summary == "No lesson was adopted."
+    rejected_transfer = report.transfer.model_copy(update={"decision": "reject"})
+    state = presentation_from_report(report.model_copy(update={"transfer": rejected_transfer}))
+    assert "Not adopted" in state.stages[4].summary
+    assert "First repair:" not in state.stages[4].summary
 
 
 def test_pending_and_public_results_never_claim_independent_success() -> None:
@@ -49,7 +61,8 @@ def test_pending_and_public_results_never_claim_independent_success() -> None:
     )
     assert initial.current_stage == 0  # reducer does not mutate its input
     assert "passed" not in state.stages[1].summary.lower()
-    assert "1/4" in state.stages[1].details
+    assert "1/4" not in state.stages[1].details
+    assert "recorded holdings" in state.stages[1].details
     assert all("Accepted" not in stage.summary for stage in state.stages)
     state = apply_demo_event(state, DemoEvent(event="verifying", message="Checking."))
     state = apply_demo_event(state, DemoEvent(event="building", message="Another repair."))
@@ -69,7 +82,7 @@ def test_replay_headers_open_actual_details_without_starting_a_model() -> None:
                 await pilot.click("#stage-2 CollapsibleTitle")
                 await pilot.pause()
                 assert not section.collapsed
-                assert "5/5" in str(app.query_one("#body-2", Static).render())
+                assert "Lost reply: no extra shares" in str(app.query_one("#body-2", Static).render())
                 spawn.assert_not_called()
 
     asyncio.run(exercise())

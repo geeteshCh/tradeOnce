@@ -51,6 +51,7 @@ class PresentationState(BaseModel):
     stages: list[StageView] = Field(min_length=5, max_length=5)
     current_stage: int = Field(default=0, ge=0, le=4)
     task_number: int = Field(default=0, ge=0, le=2)
+    first_proposals: int | None = Field(default=None, ge=0)
     complete: bool = False
 
     @classmethod
@@ -91,21 +92,37 @@ def _problem(evidence: SuiteEvidence) -> str:
 
 
 def _decision(result: CodingTaskResult) -> str:
+    """Describe the observed trade outcome; keep test counts in expandable proof."""
     if result.decision == "promote":
-        return f"{result.hidden_passed}/{result.hidden_total} unseen tests passed. Accepted."
+        return f"Repair accepted. {_problem(result.public)}"
     retained = "previous" if result.loaded_memory_revision else "original"
     return (
-        f"{result.hidden_passed}/{result.hidden_total} unseen tests passed. "
         f"Not adopted; {retained} version kept."
     )
 
 
 def _lesson(result: CodingTaskResult) -> str:
     if result.decision == "promote" and result.memory_revision > result.loaded_memory_revision:
-        return "Saved the independently verified lesson in MongoDB."
+        return "Saved the repair lesson for the next problem."
     if result.loaded_memory_revision:
         return "Kept the previous approved lesson."
     return "No lesson was adopted."
+
+
+def _check_outcomes(result: CodingTaskResult) -> str:
+    """Translate public broker evidence without scores or internal identifiers."""
+    descriptions = {
+        "t01_clean": "Normal trade: the requested shares were bought.",
+        "t02_accept_then_timeout": "Lost reply: no extra shares were bought.",
+        "t03_accept_then_500": "Error after purchase: no extra shares were bought.",
+        "t04_transient_500": "Temporary broker failure: the trade still completed.",
+        "t09_real_reject": "Rejected trade: nothing was bought.",
+    }
+    return "\n".join(
+        descriptions[row.scenario_id] if row.passed else "A broker failure still needs a repair."
+        for row in result.public.results
+        if row.scenario_id in descriptions
+    )
 
 
 def apply_demo_event(state: PresentationState, event: DemoEvent) -> PresentationState:
@@ -138,13 +155,13 @@ def apply_demo_event(state: PresentationState, event: DemoEvent) -> Presentation
             stage.summary = "Gemini is writing and testing a real Python repair."
         elif kind == "public_check":
             stage.summary = "Testing the repair against the known cases."
-            stage.details = event.message
+            stage.details = "Checking the broker's recorded holdings against the requested trade."
         else:
             stage.summary = "The first try was rejected; the approved version stayed in place."
     elif kind == "verifying":
         index = 2 if updated.task_number <= 1 else 4
         _advance(updated, index)
-        updated.stages[index].summary = "An independent checker is trying unseen cases."
+        updated.stages[index].summary = "Checking that it buys the right amount when broker replies go wrong."
     elif kind == "memory":
         _advance(updated, 4)
         updated.stages[4].summary = "Loaded the previously approved lesson for a related failure."
@@ -152,22 +169,28 @@ def apply_demo_event(state: PresentationState, event: DemoEvent) -> Presentation
         result = CodingTaskResult.model_validate_json(event.message)
         if updated.task_number <= 1:
             _advance(updated, 3)
+            updated.first_proposals = result.patch_proposals
             updated.stages[1].summary = (
                 f"{result.patch_proposals} repair proposal(s) in {result.elapsed_seconds:.0f}s."
             )
             updated.stages[2].summary = _decision(result)
-            updated.stages[2].details = (
-                f"Independent verification: {result.verification_id}\n"
-                f"Measured time: {result.elapsed_seconds:.0f}s"
-            )
+            updated.stages[2].details = _check_outcomes(result)
             updated.stages[3].summary = _lesson(result)
             updated.stages[3].details = result.lesson
         else:
             _advance(updated, 4)
             updated.stages[4].summary = _decision(result)
+            if result.decision == "promote" and updated.first_proposals is not None:
+                updated.stages[4].summary = (
+                    f"First repair: {updated.first_proposals} attempts → "
+                    f"related problem: {result.patch_proposals}."
+                )
             updated.stages[4].details = (
-                f"{result.patch_proposals} repair proposal(s), "
-                f"{result.elapsed_seconds:.0f}s. Two related tasks; results can vary."
+                f"{_decision(result)}\n"
+                f"{result.patch_proposals} repair proposal(s), {result.elapsed_seconds:.0f}s.\n"
+                f"Saved lesson {'loaded' if result.loaded_memory_revision else 'not loaded'}.\n"
+                f"{_check_outcomes(result)}\n"
+                "Two different tasks; this run shows the comparison, not a guaranteed speedup."
             )
             updated.stages[4].status = "complete"
             updated.complete = True
