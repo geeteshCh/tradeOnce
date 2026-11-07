@@ -22,7 +22,7 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["arena*", "auditor*", "loop*", "stage*", "providers*", "storage*", "harnessing*"]
+include = ["arena*", "auditor*", "builder*", "loop*", "stage*", "providers*", "storage*", "harnessing*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
