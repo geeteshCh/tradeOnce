@@ -2,7 +2,7 @@
 
 - **Team / project:** TradeOnce
 - **Track:** The System That Gets Better
-- **Project Description:** 2,017 / 3,000 characters
+- **Project Description:** 2,060 / 3,000 characters
 - **Repository:** https://github.com/geeteshCh/tradeOnce
 - **One-minute YouTube demo:** TODO — add the video URL before submitting.
 - **Submission form:** https://cerebralvalley.ai/e/aie-code-2026-hackathon/hackathon/submit
@@ -55,7 +55,7 @@ Measured results:
 - Recorded coding run: timeout repair took 3 proposals / 147 seconds; a related server-error repair with the saved lesson took 1 proposal / 36 seconds. Both passed 5/5 hidden checks. Different tasks: observed lesson transfer, not a controlled speedup.
 - Six matched Alpaca paper-broker scenarios: the original Executor made 3 duplicate orders; the Gemini-written version made 0 and completed 6/6 safely by our checks. The unmodified ai-hedge-fund pipeline runs through our adapter. These use fake money, real broker APIs, injected faults, and cached stand-in analyst signals.
 
-Technical depth: typed Pydantic contracts, real code execution, operating-system isolation, independent side-effect checks, Git provenance, and MongoDB compare-and-swap memory.
+Technical depth: Harness² Propose-Probe-Compose refinement, typed Pydantic contracts, real code execution, operating-system isolation, independent side-effect checks, Git provenance, and MongoDB compare-and-swap memory.
 
 Current limits: the saved Gemini Executor passes 8/9 Arena cases; partial fills remain unsolved. The working coding demo is standalone; integration with the shared multi-agent round loop is incomplete.
 
