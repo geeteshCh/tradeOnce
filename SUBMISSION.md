@@ -4,7 +4,7 @@
 - **Track:** The System That Gets Better
 - **Project Description:** 2,104 / 3,000 characters
 - **Repository:** https://github.com/geeteshCh/tradeOnce
-- **One-minute YouTube demo:** TODO — add the video URL before submitting.
+- **One-minute YouTube demo:** https://youtu.be/3tIXI4vbVVU
 - **Submission form:** https://cerebralvalley.ai/e/aie-code-2026-hackathon/hackathon/submit
 
 ## System design
@@ -65,9 +65,3 @@ Current limits: the saved Gemini Executor passes 8/9 Arena cases; partial fills 
 - [Recorded Gemini repair run](demo/recorded/argon-coding.json)
 - [Alpaca paper-broker comparison](agent_bridge/reports/side_by_side.json)
 - [Saved repair and provenance](demo/promoted/argon-v2/PROVENANCE.md)
-
-## Before submitting
-
-- Add the YouTube URL; paste only the Project Description into the form.
-- Label recordings, paper trading, injected faults, and stand-in signals in the video.
-- Show work built during the event and credit Harness², Gemini, MongoDB, and ai-hedge-fund.
