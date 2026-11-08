@@ -39,15 +39,6 @@ flowchart LR
 
 **AI writes; fixed code verifies.** Only approved lessons reach the next repair. Model weights stay fixed.
 
-## What the demo proves
-
-| Capability | Evidence |
-|---|---|
-| **Real broker failure** | One intended trade becomes two. [Alpaca staff document the risk](https://forum.alpaca.markets/t/open-orders-failing-to-close-on-paper-account/18533); our [evidence guide](docs/demo-evidence.md) connects it to the demo. |
-| **Working code repair** | Real AI-written repair, independent checks, and a real paper-broker comparison: **3 duplicate orders → 0** across six matched scenarios. [Results](agent_bridge/reports/side_by_side.json). |
-| **Reusable lessons** | Reset to broken code; reuse the verified lesson. Next repair: **3 proposals → 1**, on different tasks. [Recorded run](demo/recorded/argon-coding.json). |
-| **Independent verification** | Harness² refinement, Pydantic contracts, OS sandbox, private tests, Git provenance, and MongoDB revision checks. [Retained code and provenance](demo/promoted/argon-v2/PROVENANCE.md). |
-
 ## Project Description
 
 You tell your trading agent to buy 1 share. It buys 2. The broker completed the first trade, but its reply disappeared; the bot retried and bought again.
@@ -67,6 +58,13 @@ Measured results:
 Technical depth: typed Pydantic contracts, real code execution, operating-system isolation, independent side-effect checks, Git provenance, and MongoDB compare-and-swap memory.
 
 Current limits: the saved Gemini Executor passes 8/9 Arena cases; partial fills remain unsolved. The working coding demo is standalone; integration with the shared multi-agent round loop is incomplete.
+
+## Evidence
+
+- [Broker risk and primary sources](docs/demo-evidence.md)
+- [Recorded Gemini repair run](demo/recorded/argon-coding.json)
+- [Alpaca paper-broker comparison](agent_bridge/reports/side_by_side.json)
+- [Saved repair and provenance](demo/promoted/argon-v2/PROVENANCE.md)
 
 ## Before submitting
 
