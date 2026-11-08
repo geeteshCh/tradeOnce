@@ -6,6 +6,8 @@
 
 TradeOnce does **not** predict prices or pick stocks. It is a **wrapper around an existing open-source trading agent** that improves that agent's code, and the code that places its trades, so its trades are **correct and safe**. It does not try to make the agent more profitable.
 
+**Demo evidence:** before changing demo scenarios, presentation wording, or public claims, read [the trading demo evidence guide](docs/demo-evidence.md). It separates broker guidance, a historical paper-trading report, our verified runs, and proposed mock scenes. Preserve those distinctions when generating code, documentation, or narration.
+
 ## Framework decision: Harness² recursive self-improvement
 
 **Build around [Google Research Harness²](https://github.com/google-research/harness2).** Use the existing `harnessing/` integration and the upstream revision pinned in `pyproject.toml`. Harness² owns recursive improvement of the Builder's prompts, guardrails, tool guidance, and lessons; the Builder produces actual Executor code patches. The fixed TradeOnce loop and deterministic Auditor retain promotion authority.
@@ -618,6 +620,8 @@ The file list controls editing context; enforce the private-data and write bound
 ---
 
 ## Demo story
+
+Use the [evidence-backed scenario guide](docs/demo-evidence.md#a-story-anyone-can-follow) for the plain-English story and source links. The sequence below is a target narrative; the saved Argon v2 still fails partial fills, as recorded in its [provenance](demo/promoted/argon-v2/PROVENANCE.md).
 
 1. v0 retries on timeout and places a **duplicate order**. The Auditor catches it.
 2. The Builder writes reconciliation using `client_order_id`, passes the hidden set, and is **promoted to v1**.
