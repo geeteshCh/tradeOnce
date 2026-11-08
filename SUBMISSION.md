@@ -39,14 +39,14 @@ flowchart LR
 
 **AI writes; fixed code verifies.** Only approved lessons reach the next repair. Model weights stay fixed.
 
-## What judges can see
+## What the demo proves
 
-| Criterion | Demo value and proof |
+| Capability | Evidence |
 |---|---|
-| **Impact · 20%** | One intended trade becomes two. [Alpaca staff document the risk](https://forum.alpaca.markets/t/open-orders-failing-to-close-on-paper-account/18533); our [evidence guide](docs/demo-evidence.md) connects it to the demo. |
-| **Technical demo · 35%** | Real AI-written repair, independent checks, and a real paper-broker comparison: **3 duplicate orders → 0** across six matched scenarios. [Results](agent_bridge/reports/side_by_side.json). |
-| **Creativity · 15%** | Reset to broken code; reuse the verified lesson. Next repair: **3 proposals → 1**, on different tasks. [Recorded run](demo/recorded/argon-coding.json). |
-| **Difficulty · 30%** | Harness² refinement, Pydantic contracts, OS sandbox, private tests, Git provenance, and MongoDB revision checks. [Retained code and provenance](demo/promoted/argon-v2/PROVENANCE.md). |
+| **Real broker failure** | One intended trade becomes two. [Alpaca staff document the risk](https://forum.alpaca.markets/t/open-orders-failing-to-close-on-paper-account/18533); our [evidence guide](docs/demo-evidence.md) connects it to the demo. |
+| **Working code repair** | Real AI-written repair, independent checks, and a real paper-broker comparison: **3 duplicate orders → 0** across six matched scenarios. [Results](agent_bridge/reports/side_by_side.json). |
+| **Reusable lessons** | Reset to broken code; reuse the verified lesson. Next repair: **3 proposals → 1**, on different tasks. [Recorded run](demo/recorded/argon-coding.json). |
+| **Independent verification** | Harness² refinement, Pydantic contracts, OS sandbox, private tests, Git provenance, and MongoDB revision checks. [Retained code and provenance](demo/promoted/argon-v2/PROVENANCE.md). |
 
 ## Project Description
 
