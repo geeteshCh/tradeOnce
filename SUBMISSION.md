@@ -1,34 +1,73 @@
 # TradeOnce hackathon submission
 
-- **Team name:** TradeOnce
-- **Project name:** TradeOnce
+- **Team / project:** TradeOnce
 - **Track:** The System That Gets Better
-- **Project Description length:** 2,398 / 3,000 characters
-- **Public GitHub repository:** https://github.com/geeteshCh/tradeOnce
-- **One-minute YouTube demo:** TODO — add the YouTube video URL before submitting.
+- **Project Description:** 2,104 / 3,000 characters
+- **Repository:** https://github.com/geeteshCh/tradeOnce
+- **One-minute YouTube demo:** TODO — add the video URL before submitting.
 - **Submission form:** https://cerebralvalley.ai/e/aie-code-2026-hackathon/hackathon/submit
+
+## System design
+
+**Asked for 1 share. Received 2. Repair the code; keep the lesson.**
+
+```mermaid
+flowchart LR
+    F("1. Buy 1 share<br/>Broker bought 2")
+    B("2. Repair code<br/>Harness² + Gemini")
+    V("3. Test code<br/>Sandbox + Arena")
+    J{"4. Check trades<br/>Fixed Python Judge"}
+    P("5. Keep improvement<br/>Git + MongoDB")
+    R("Reject<br/>Keep prior state")
+
+    F --> B --> V --> J
+    J -->|Pass| P
+    J -->|Fail| R
+    P -.->|Next task: reuse lessons| B
+
+    classDef failure fill:#fff1f2,stroke:#be123c,color:#881337,stroke-width:2px
+    classDef learn fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+    classDef verify fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95,stroke-width:2px
+    classDef approve fill:#ecfdf5,stroke:#059669,color:#064e3b,stroke-width:2px
+    classDef reject fill:#fff7ed,stroke:#d97706,color:#78350f,stroke-width:2px
+    class F failure
+    class B learn
+    class V,J verify
+    class P approve
+    class R reject
+```
+
+**AI writes; fixed code verifies.** Only approved lessons reach the next repair. Model weights stay fixed.
 
 ## Project Description
 
-Your trading agent decides to buy once. A lost broker reply makes it buy twice. TradeOnce finds and repairs that execution code, independently verifies each change, and carries approved lessons into the next repair.
+You tell your trading agent to buy 1 share. It buys 2. The broker completed the first trade, but its reply disappeared; the bot retried and bought again.
 
-Our demo starts with a concrete failure: buy 1 share, receive 2. Gemini 4 Argon writes a real Python repair. Google Research Harness² refines the Builder's instructions through a sequential improvement step. Each candidate runs in a sandbox against an unreliable broker simulator, with normal trades, lost replies, temporary errors and genuine rejections. A fixed, independent auditor checks the broker's actual records, including private cases the Builder cannot see or edit. A repair must pass training, regression and held-out checks before it is kept.
+This is a documented broker-integration risk. Alpaca staff explain it here: https://forum.alpaca.markets/t/open-orders-failing-to-close-on-paper-account/18533
 
-Accepted code is versioned in Git. Approved Builder instructions, lessons and verification provenance are persisted in MongoDB. Rejected candidates leave the approved memory intact. On a later, related broker failure, we reset to the original broken code and reload the saved Builder guidance. In our recorded live run, the first repair required 3 code proposals and 147 seconds; the related repair required 1 proposal and 36 seconds. These are measured results on different tasks, not a guaranteed speedup.
+TradeOnce repairs the code, independently verifies the trades, and remembers what worked.
 
-We also connected the repaired Executor to the existing open-source ai-hedge-fund agent, leaving its pipeline unchanged. In six matched scenarios against Alpaca's paper broker, the original Executor produced 3 duplicate orders; the Gemini-written version produced none and completed all six scenarios safely by our checks. This uses fake money, real broker API calls, injected faults and cached stand-in analyst signals. Partial fills remain a known gap.
+- Repair: Google Research Harness² proposes better instructions, probes them by running Gemini 4 Argon's Python fixes, then composes improved guidance (Propose-Probe-Compose).
+- Verify: patches use typed Pydantic contracts and run in a macOS sandbox against a fault-injecting broker simulator. A fixed Python Auditor checks the broker ledger, regressions, and private tests. The Builder cannot edit the Judge or its hidden cases.
+- Remember: Git versions the approved code. MongoDB saves verified Builder guidance with revision checks; rejection keeps the previous state. The next task starts with broken code and reloads the approved lesson through a fresh database connection.
 
-During the event, we built the broker simulator and fault injection, sandboxed coding workflow, independent verification gate, versioned memory integration, external-agent adapter and an expandable terminal presentation. We build on existing Gemini, Harness², MongoDB and ai-hedge-fund components. The terminal shows the mistake, repair, outcome, saved lesson and next problem; finished steps fold away so the audience can follow the story.
+Measured results:
+- Recorded coding run: timeout repair took 3 proposals / 147 seconds; a related server-error repair with the saved lesson took 1 proposal / 36 seconds. Both passed 5/5 hidden checks. Different tasks: observed lesson transfer, not a controlled speedup.
+- Six matched Alpaca paper-broker scenarios: the original Executor made 3 duplicate orders; the Gemini-written version made 0 and completed 6/6 safely by our checks. The unmodified ai-hedge-fund pipeline runs through our adapter. These use fake money, real broker APIs, injected faults, and cached stand-in analyst signals.
 
-TradeOnce demonstrates a self-improving coding system whose progress is earned through execution and independent evidence. The useful output is both a working repair and a better-informed Builder for the next failure.
+Why Harness² fits: broker failures recur in related forms. The framework improves how Gemini repairs them, carrying verified lessons into the next task. Execution feedback improves the harness; model weights stay frozen.
 
-## Evidence for the submission
+Current limits: the saved Gemini Executor passes 8/9 Arena cases; partial fills remain unsolved. The working coding demo is standalone; integration with the shared multi-agent round loop is incomplete.
 
-The Project Description above is the text to paste into the form. The notes below are supporting material outside that field.
+## Evidence
 
-- [Recorded live coding run](demo/recorded/argon-coding.json): actual proposal counts, timings, code diffs, decisions and memory revisions.
-- [Gemini-written Executor provenance](demo/promoted/argon-v2/PROVENANCE.md): origin of the repaired code and its known partial-fill limitation.
-- [Alpaca paper comparison](agent_bridge/reports/side_by_side.json): original versus Gemini-written Executor under the matched scenarios.
-- [Demo evidence guide](docs/demo-evidence.md): boundaries between verified behavior, external reports and proposed scenes.
+- [Broker risk and primary sources](docs/demo-evidence.md)
+- [Recorded Gemini repair run](demo/recorded/argon-coding.json)
+- [Alpaca paper-broker comparison](agent_bridge/reports/side_by_side.json)
+- [Saved repair and provenance](demo/promoted/argon-v2/PROVENANCE.md)
 
-For the one-minute video, show only work built during the event, credit existing components, and label recorded runs, paper trading, injected faults and stand-in signals when they appear. Replace the YouTube placeholder before submitting.
+## Before submitting
+
+- Add the YouTube URL; paste only the Project Description into the form.
+- Label recordings, paper trading, injected faults, and stand-in signals in the video.
+- Show work built during the event and credit Harness², Gemini, MongoDB, and ai-hedge-fund.
