@@ -4,6 +4,15 @@ TradeOnce wraps a trading agent and verifies code improvements against an
 independent Judge. See [AGENTS.md](AGENTS.md) for the architecture and ownership
 boundaries.
 
+## Why the trading demo matters
+
+A broker can execute an order even when its confirmation is lost. A bot that
+blindly submits a fresh order can then trade twice. Our [demo evidence guide](docs/demo-evidence.md)
+links the broker's explanation and a historical paper-trading customer report,
+explains the proposed “approved $500, spent $1,000” mock, and identifies what is
+already verified versus still proposed. Read it when preparing the pitch or
+extending the demo.
+
 ## Real coding demo: one timeout, two orders, one lesson
 
 Run a real Gemini 4 Argon Builder through one sequential Harness² refinement
